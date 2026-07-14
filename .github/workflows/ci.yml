@@ -1,0 +1,30 @@
+name: Go CI
+on:
+  push:
+  pull_request:
+    branches:
+        - main
+        - dev 
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code from github
+        uses: actions/checkout@v4
+      - name: install Go
+        uses: actions/setup-go@v4
+        with:
+            go-version-file: go.mod
+      - name: download the package
+        run: go mod download
+      - name: verify dependencies
+        run: go mod tidy && git diff --exit-code
+      - name: check formatting
+        run: test -z "$(gofmt -l .)"
+      - name: build project
+        run: go build ./...
+      - name: go vet
+        run: go vet ./...
+      - name: Run tests
+        run: go test ./...   
+

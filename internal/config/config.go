@@ -14,6 +14,6 @@ func Load() Config {
 	}
 
 	return Config{
-		Port: port,
+		Port: ":" + port,
 	}
 }

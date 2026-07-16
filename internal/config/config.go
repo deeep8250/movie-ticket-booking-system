@@ -1,6 +1,14 @@
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/jmoiron/sqlx"
+)
+
+var PostgresClient *sqlx.DB
+var RedisClient *redis.Client
 
 type Config struct {
 	Port string

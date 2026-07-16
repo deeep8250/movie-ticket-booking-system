@@ -7,8 +7,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var PostgresClient *sqlx.DB
-var RedisClient *redis.Client
+type dbClient struct {
+	PostgresClient *sqlx.DB
+	RedisClient    *redis.Client
+}
+
+var DBClients dbClient
 
 type Config struct {
 	Port string
@@ -18,7 +22,7 @@ func Load() Config {
 	port := os.Getenv("PORT")
 
 	if port == "" {
-		port = ":8080"
+		port = "8080"
 	}
 
 	return Config{

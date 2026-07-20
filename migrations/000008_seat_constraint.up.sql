@@ -1,0 +1,1 @@
+alter table seats add constraint seat_hall_id_fk foreign key (hall_id) references halls(id);

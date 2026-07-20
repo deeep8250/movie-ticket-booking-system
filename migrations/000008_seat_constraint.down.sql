@@ -1,0 +1,1 @@
+alter table seats drop constraint if exists seat_hall_id_fk;

@@ -5,5 +5,5 @@
         status varchar(20) check(status in('confirmed','cancelled','pending','expired')),
         created_at timestamptz default now(),
         updated_at timestamptz default now(),
-        unique(user_id,show_id)
+        unique(,show_id)
     );

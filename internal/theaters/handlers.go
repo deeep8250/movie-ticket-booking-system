@@ -3,6 +3,7 @@ package theaters
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,4 +34,32 @@ func (h *TheaterHandler) GetTheaters(c *gin.Context) {
 		"theaters": theaters,
 	})
 
+}
+
+func (h *TheaterHandler) GetShows(c *gin.Context) {
+
+	TheaterId := c.Param("id")
+	theaterIdInt, err := strconv.Atoi(TheaterId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "theater id is invalid",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
+	defer cancel()
+
+	shows, err := h.service.GetShowsService(ctx, theaterIdInt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"TheaterID":       theaterIdInt,
+		"shows_available": shows,
+	})
 }

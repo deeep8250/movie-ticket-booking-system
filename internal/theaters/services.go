@@ -38,3 +38,29 @@ func (s *TheaterService) GetTheatersService(c context.Context) ([]dto.Theater, e
 
 	return theaters, nil
 }
+
+func (s *TheaterService) GetShowsService(c context.Context, TheaterId int) ([]dto.TheaterShows, error) {
+	shows, err := s.repo.GetShowsRepo(c, TheaterId)
+	if err != nil {
+		return nil, err
+	}
+
+	var showsInTheater []dto.TheaterShows
+	for r := range shows {
+
+		showInTheater := dto.TheaterShows{
+			ShowId:      shows[r].ShowId,
+			TheaterName: shows[r].TheaterName,
+			HallName:    shows[r].HallName,
+			MovieName:   shows[r].MovieName,
+			Language:    shows[r].Language,
+			StartDate:   shows[r].StartDate,
+			EndDate:     shows[r].EndDate,
+			Price:       shows[r].Price,
+		}
+		showsInTheater = append(showsInTheater, showInTheater)
+
+	}
+
+	return showsInTheater, nil
+}

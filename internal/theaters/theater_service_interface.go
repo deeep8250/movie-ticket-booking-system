@@ -8,4 +8,5 @@ import (
 
 type TheaterServiceInterface interface {
 	GetTheatersService(c context.Context) ([]dto.Theater, error)
+	GetShowsService(c context.Context, TheaterId int) ([]dto.TheaterShows, error)
 }

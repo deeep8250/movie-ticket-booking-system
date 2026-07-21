@@ -17,5 +17,6 @@ func Routes(r *gin.Engine) {
 	p := r.Group("/public")
 	{
 		p.GET("/theaters", theaterHandler.GetTheaters)
+		p.GET("/theaters/shows/:id", theaterHandler.GetShows)
 	}
 }

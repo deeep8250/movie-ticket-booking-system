@@ -38,3 +38,23 @@ func (r *TheaterRepository) GetTheaters(c context.Context) ([]models.Theater, er
 	}
 	return theaterList, nil
 }
+
+func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]models.TheaterShows, error) {
+	query := `select s.id as show_id,t.theater_name as theater_name,h.hall_name as hall_name,
+        m.title as movie_name,m.language,s.starts_at,s.ends_at,s.base_price from theaters as t
+		join halls as h on t.id=h.theater_id
+		join shows as s on s.hall_id=h.id
+		join movies as m on  s.movie_id=m.id
+		where t.id=$1
+		order by (t.id,h.id,m.id,s.id);
+		`
+
+	var shows []models.TheaterShows
+	err := r.db.SelectContext(c, &shows, query, TheaterId)
+	if err != nil {
+		return nil, err
+	}
+
+	return shows, nil
+
+}

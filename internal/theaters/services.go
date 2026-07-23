@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/deeep8250/movie-ticket-booking-system/internal/dto"
+	"github.com/deeep8250/movie-ticket-booking-system/internal/models"
 )
 
 type TheaterService struct {
@@ -63,4 +64,13 @@ func (s *TheaterService) GetShowsService(c context.Context, TheaterId int) ([]dt
 	}
 
 	return showsInTheater, nil
+}
+
+func (s *TheaterService) GetSeatsService(c context.Context, showsId int) (*models.SeatsInShows, error) {
+	seatsAvailableForTheShow, err := s.repo.GetSeats(c, showsId)
+	if err != nil {
+		return nil, err
+	}
+
+	return seatsAvailableForTheShow, nil
 }

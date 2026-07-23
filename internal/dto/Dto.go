@@ -34,3 +34,18 @@ type Seats struct {
 	SeatType   string `json:"seat_type"`
 	Status     string `json:"status"`
 }
+
+// type SeatBooking struct {
+// 	Id int `json:"id"`
+// 	SeatID int `json:"seat_id"`
+// 	ShowID int `json:"show_id"`
+// }
+
+// create table if not exists seat_bookings(
+// id bigserial primary key,
+// booking_id bigint not null references bookings(id),
+// seat_id bigint not null references seats(id),
+// show_id bigint not null references shows(id),
+// created_at  timestamptz not null default now(),
+// unique(show_id,seat_id)
+// );

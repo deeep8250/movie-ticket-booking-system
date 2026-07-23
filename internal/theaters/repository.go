@@ -3,6 +3,7 @@ package theaters
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/deeep8250/movie-ticket-booking-system/internal/config"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/models"
@@ -132,7 +133,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	if err != nil {
 		return nil, err
 	}
-	if count == 0 {
+	if ShowCount == 0 {
 		return nil, errors.New("show not found")
 	}
 	// 1 validate seats belongs to the show and active also
@@ -155,7 +156,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	}
 
 	if len(bookedSeatIds) > 0 {
-		return nil, errors.New("one or more seats are already booked")
+		return nil, fmt.Errorf("seats already booked: %v", bookedSeatIds)
 	}
 
 	// 3. Get show price

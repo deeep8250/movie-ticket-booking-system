@@ -126,6 +126,15 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 		return nil, errors.New("user not found")
 	}
 
+	// checking if the showId is exists or not
+	var ShowCount int
+	err = tx.GetContext(c, &ShowCount, `select count(*) from shows where id=$1`, showID)
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, errors.New("show not found")
+	}
 	// 1 validate seats belongs to the show and active also
 	var validSeatCount int
 	err = tx.GetContext(c, &validSeatCount, `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where sh.id=$1 and s.id=any($2) and s.is_active=true`, showID, pq.Array(seats))

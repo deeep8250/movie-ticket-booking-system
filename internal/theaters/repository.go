@@ -108,11 +108,11 @@ func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.Se
 
 }
 
-func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seats []int) error {
+func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seats []int) (*models.SeatBooking, error) {
 
 	tx, err := r.db.BeginTxx(c, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -120,11 +120,11 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	var validSeatCount int
 	err = tx.GetContext(c, &validSeatCount, `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where sh.id=$1 and s.id=any($2) and s.is_active=true`, showID, pq.Array(seats))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if validSeatCount != len(seats) {
-		return errors.New("one or more seats are invalid for this show")
+		return nil, errors.New("one or more seats are invalid for this show")
 	}
 
 	// 2 check already booked seats
@@ -132,18 +132,18 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	var bookedSeatIds []int
 	err = tx.SelectContext(c, &bookedSeatIds, `select seat_id from seat_bookings where seat_id=any($1) and show_id=$2`, pq.Array(seats), showID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(bookedSeatIds) > 0 {
-		return errors.New("one or more seats are already booked")
+		return nil, errors.New("one or more seats are already booked")
 	}
 
 	// 3. Get show price
 	var basePrice float64
 	err = tx.GetContext(c, &basePrice, `select base_price from shows where id=$1`, showID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	totalAmount := float64(len(seats)) * basePrice
@@ -153,7 +153,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	var bookingID int
 	err = tx.QueryRowxContext(c, `insert into bookings (user_id,show_id,status,total_amount) values($1,$2,'confirmed',$3) returning id`, userID, showID, totalAmount).Scan(&bookingID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// 5. Insert selected seats
@@ -161,14 +161,34 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	for _, seatID := range seats {
 		_, err := tx.ExecContext(c, `insert into seat_bookings(booking_id,show_id,seat_id) values($1,$2,$3)`, bookingID, showID, seatID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 	}
+
+	// 5.1 fetching the final data that need to return
+	var data []int
+
+	err = tx.SelectContext(c, &data, `select s.id as seat_booked from seat_bookings as s where booking_id=$1`, bookingID)
+	if err != nil {
+		return nil, err
+	}
+
+	var bookingData models.SeatBooking
+	// user_id,show_id,total_price
+	err = tx.GetContext(c, &bookingData, `select user_id,show_id,total_amount from bookings where id=$1`, bookingID)
+	if err != nil {
+		return nil, err
+	}
+
+	bookingData.SeatsBooked = append(bookingData.SeatsBooked, data...)
+
 	// 6. final save
 	err = tx.Commit()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	return &bookingData, err
+
 }

@@ -109,7 +109,7 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
-	err = h.service.BookSeatService(ctx, userInput.UserId, userInput.ShowId, userInput.Seats)
+	bookingData, err := h.service.BookSeatService(ctx, userInput.UserId, userInput.ShowId, userInput.Seats)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -118,7 +118,8 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "booked",
+		"status":       "confirmed",
+		"booking_info": bookingData,
 	})
 
 }

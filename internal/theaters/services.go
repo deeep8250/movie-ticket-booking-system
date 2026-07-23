@@ -85,10 +85,18 @@ func (s *TheaterService) GetSeatsService(c context.Context, showsId int) (*dto.S
 	return &seats, nil
 }
 
-func (s *TheaterService) BookSeatService(c context.Context, userID, showID int, seats []int) error {
-	err := s.repo.BookSeat(c, userID, showID, seats)
+func (s *TheaterService) BookSeatService(c context.Context, userID, showID int, seats []int) (*dto.SeatBooking, error) {
+	bookingData, err := s.repo.BookSeat(c, userID, showID, seats)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	bookingD := dto.SeatBooking{
+		Id:          bookingData.Id,
+		UserId:      bookingData.UserId,
+		ShowID:      bookingData.ShowID,
+		SeatsBooked: bookingData.SeatsBooked,
+	}
+
+	return &bookingD, nil
 }

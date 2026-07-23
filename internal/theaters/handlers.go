@@ -2,11 +2,13 @@ package theaters
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 type TheaterHandler struct {
@@ -95,16 +97,29 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 	type Uinput struct {
 		UserId int   `json:"user_id" binding:"required,gt=0"`
 		ShowId int   `json:"show_id" binding:"required,gt=0"`
-		Seats  []int `json:"seats" binding:"required,min=1,dive,gt=0"`
+		Seats  []int `json:"seats" binding:"required,min=1,unique,dive,gt=0"`
 	}
 
 	var userInput Uinput
 	err := c.ShouldBindJSON(&userInput)
 	if err != nil {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			for _, fieldErr := range validationErrors {
+				if fieldErr.Field() == "Seats" && fieldErr.Tag() == "unique" {
+					c.JSON(http.StatusBadRequest, gin.H{
+						"error": "duplicate seat ids are not allowed",
+					})
+					return
+				}
+			}
+
+		}
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
+
 	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)

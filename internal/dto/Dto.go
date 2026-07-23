@@ -36,10 +36,10 @@ type Seats struct {
 }
 
 type SeatBooking struct {
-	Id          int     `json:"id"`
+	Id          int     `json:"booking_id"`
 	UserId      int     `json:"user_id"`
 	ShowID      int     `json:"show_id"`
-	SeatsBooked []int   `json:"seats_booked"`
+	SeatsBooked []int   `json:"seats_ids"`
 	TotalPrice  float64 `json:"total_price"`
 }
 

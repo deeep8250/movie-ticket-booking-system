@@ -176,7 +176,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 
 	var bookingData models.SeatBooking
 	// user_id,show_id,total_price
-	err = tx.GetContext(c, &bookingData, `select user_id,show_id,total_amount from bookings where id=$1`, bookingID)
+	err = tx.GetContext(c, &bookingData, `select id,user_id,show_id,total_amount from bookings where id=$1`, bookingID)
 	if err != nil {
 		return nil, err
 	}

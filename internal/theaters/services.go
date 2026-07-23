@@ -95,6 +95,7 @@ func (s *TheaterService) BookSeatService(c context.Context, userID, showID int, 
 		Id:          bookingData.Id,
 		UserId:      bookingData.UserId,
 		ShowID:      bookingData.ShowID,
+		TotalPrice:  bookingData.TotalPrice,
 		SeatsBooked: bookingData.SeatsBooked,
 	}
 

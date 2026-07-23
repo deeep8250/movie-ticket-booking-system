@@ -10,4 +10,5 @@ type TheaterServiceInterface interface {
 	GetTheatersService(c context.Context) ([]dto.Theater, error)
 	GetShowsService(c context.Context, TheaterId int) ([]dto.TheaterShows, error)
 	GetSeatsService(c context.Context, showsId int) (*dto.SeatsInShows, error)
+	BookSeatService(c context.Context, userID, showID int, seats []int) error
 }

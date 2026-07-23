@@ -18,5 +18,6 @@ func Routes(r *gin.Engine) {
 	{
 		p.GET("/theaters", theaterHandler.GetTheaters)
 		p.GET("/theaters/shows/:id", theaterHandler.GetShows)
+		p.GET("theaters/shows/:id/seats", theaterHandler.GetSeatsHandler)
 	}
 }

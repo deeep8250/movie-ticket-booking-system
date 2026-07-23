@@ -20,3 +20,17 @@ type TheaterShows struct {
 	EndDate     time.Time `json:"ends_at"`
 	Price       float64   `json:"base_price"`
 }
+
+type SeatsInShows struct {
+	ShowId         int     `json:"show_id"`
+	MovieName      string  `json:"movie_name"`
+	HallName       string  `json:"hall_name"`
+	SeatsAvailable []Seats `json:"seats"`
+}
+
+type Seats struct {
+	SeatId     int    `json:"seat_id"`
+	SeatNumber string `json:"seat_number"`
+	SeatType   string `json:"seat_type"`
+	Status     string `json:"status"`
+}

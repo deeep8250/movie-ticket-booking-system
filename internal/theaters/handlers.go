@@ -85,8 +85,6 @@ func (h *TheaterHandler) GetSeatsHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"seats": SeatsAvailableForShows,
-	})
+	c.JSON(http.StatusOK, SeatsAvailableForShows)
 
 }

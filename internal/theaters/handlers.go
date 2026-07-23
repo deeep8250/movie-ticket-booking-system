@@ -63,3 +63,30 @@ func (h *TheaterHandler) GetShows(c *gin.Context) {
 		"shows_available": shows,
 	})
 }
+
+func (h *TheaterHandler) GetSeatsHandler(c *gin.Context) {
+
+	ShowId := c.Param("id")
+	ShowIdInt, err := strconv.Atoi(ShowId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid show id",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
+	defer cancel()
+	SeatsAvailableForShows, err := h.service.GetSeatsService(ctx, ShowIdInt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"seats": SeatsAvailableForShows,
+	})
+
+}

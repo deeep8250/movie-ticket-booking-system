@@ -58,3 +58,52 @@ func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]mo
 	return shows, nil
 
 }
+
+func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.SeatsInShows, error) {
+
+	var Seats []models.Seats
+	query := `
+	SELECT 
+		s.id AS seat_id,
+		s.seat_number,
+		s.seat_type,
+		CASE
+			WHEN s.is_active = false THEN 'disabled'
+			WHEN sb.id IS NOT NULL THEN 'booked'
+			ELSE 'available'
+		END AS status
+
+
+	FROM seats AS s
+	JOIN shows AS sh 
+		ON sh.hall_id = s.hall_id
+
+
+	LEFT JOIN seat_bookings AS sb 
+	   ON sb.seat_id = s.id
+		AND sb.show_id = sh.id
+
+
+		
+	WHERE sh.id = $1
+	ORDER BY s.id;
+`
+
+	err := r.db.SelectContext(c, &Seats, query, showsId)
+	if err != nil {
+		return nil, err
+	}
+	// showId,movie_name,hall_name
+	query2 := `select s.id as show_id,m.title as movie_name,h.hall_name from halls as h
+	            join shows as s on h.id=s.hall_id
+				join movies as m on s.movie_id=m.id where s.id=$1 order by (h.id,s.id,m.id)  `
+
+	var SeatinShows models.SeatsInShows
+	err = r.db.GetContext(c, &SeatinShows, query2, showsId)
+	if err != nil {
+		return nil, err
+	}
+	SeatinShows.SeatsAvailable = Seats
+	return &SeatinShows, nil
+
+}

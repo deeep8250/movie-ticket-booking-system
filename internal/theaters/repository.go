@@ -2,10 +2,12 @@ package theaters
 
 import (
 	"context"
+	"errors"
 
 	"github.com/deeep8250/movie-ticket-booking-system/internal/config"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/models"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 type TheaterRepository struct {
@@ -62,8 +64,7 @@ func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]mo
 func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.SeatsInShows, error) {
 
 	var Seats []models.Seats
-	query := `
-	SELECT 
+	query := `SELECT 
 		s.id AS seat_id,
 		s.seat_number,
 		s.seat_type,
@@ -86,8 +87,7 @@ func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.Se
 
 		
 	WHERE sh.id = $1
-	ORDER BY s.id;
-`
+	ORDER BY s.id;`
 
 	err := r.db.SelectContext(c, &Seats, query, showsId)
 	if err != nil {
@@ -106,4 +106,69 @@ func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.Se
 	SeatinShows.SeatsAvailable = Seats
 	return &SeatinShows, nil
 
+}
+
+func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seats []int) error {
+
+	tx, err := r.db.BeginTxx(c, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1 validate seats belongs to the show and active also
+	var validSeatCount int
+	err = tx.GetContext(c, &validSeatCount, `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where sh.id=$1 and s.id=any($2) and s.is_active=true`, showID, pq.Array(seats))
+	if err != nil {
+		return err
+	}
+
+	if validSeatCount != len(seats) {
+		return errors.New("one or more seats are invalid for this show")
+	}
+
+	// 2 check already booked seats
+
+	var bookedSeatIds []int
+	err = tx.SelectContext(c, &bookedSeatIds, `select seat_id from seat_bookings where seat_id=any($1) and show_id=$2`, pq.Array(seats), showID)
+	if err != nil {
+		return err
+	}
+
+	if len(bookedSeatIds) > 0 {
+		return errors.New("one or more seats are already booked")
+	}
+
+	// 3. Get show price
+	var basePrice float64
+	err = tx.GetContext(c, &basePrice, `select base_price from shows where id=$1`, showID)
+	if err != nil {
+		return err
+	}
+
+	totalAmount := float64(len(seats)) * basePrice
+
+	// 4. Create booking row
+
+	var bookingID int
+	err = tx.QueryRowxContext(c, `insert into bookings (user_id,show_id,status,total_amount) values($1,$2,'confirmed',$3) returning id`, userID, showID, totalAmount).Scan(&bookingID)
+	if err != nil {
+		return err
+	}
+
+	// 5. Insert selected seats
+
+	for _, seatID := range seats {
+		_, err := tx.ExecContext(c, `insert into seat_bookings(booking_id,show_id,seat_id) values($1,$2,$3)`, bookingID, showID, seatID)
+		if err != nil {
+			return err
+		}
+
+	}
+	// 6. final save
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }

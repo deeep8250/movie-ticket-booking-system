@@ -34,3 +34,11 @@ type Seats struct {
 	SeatType   string `db:"seat_type"`
 	Status     string `db:"status"`
 }
+
+type SeatBooking struct {
+	Id          int     `db:"id"`
+	UserId      int     `db:"user_id"`
+	ShowID      int     `db:"show_id"`
+	SeatsBooked []int   `db:"seats_booked"`
+	TotalPrice  float64 `db:"total_amount"`
+}

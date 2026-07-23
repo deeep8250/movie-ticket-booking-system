@@ -35,11 +35,13 @@ type Seats struct {
 	Status     string `json:"status"`
 }
 
-// type SeatBooking struct {
-// 	Id int `json:"id"`
-// 	SeatID int `json:"seat_id"`
-// 	ShowID int `json:"show_id"`
-// }
+type SeatBooking struct {
+	Id          int     `json:"id"`
+	UserId      int     `json:"user_id"`
+	ShowID      int     `json:"show_id"`
+	SeatsBooked []int   `json:"seats_booked"`
+	TotalPrice  float64 `json:"total_price"`
+}
 
 // create table if not exists seat_bookings(
 // id bigserial primary key,

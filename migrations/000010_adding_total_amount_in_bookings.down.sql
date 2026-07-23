@@ -1,0 +1,1 @@
+alter table bookings drop column if exists total_amount;

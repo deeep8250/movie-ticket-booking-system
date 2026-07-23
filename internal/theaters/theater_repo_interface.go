@@ -9,4 +9,5 @@ import (
 type TheaterRepoInterface interface {
 	GetTheaters(c context.Context) ([]models.Theater, error)
 	GetShowsRepo(c context.Context, TheaterId int) ([]models.TheaterShows, error)
+	GetSeats(c context.Context, showsId int) (*models.SeatsInShows, error)
 }

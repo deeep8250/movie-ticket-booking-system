@@ -43,6 +43,17 @@ func (r *TheaterRepository) GetTheaters(c context.Context) ([]models.Theater, er
 }
 
 func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]models.TheaterShows, error) {
+
+	// checking theater is existing or not for propper error handing
+	var theaterCounter int
+	q := `select count(*) from theaters where id=$1`
+	err := r.db.GetContext(c, &theaterCounter, q, TheaterId)
+	if err != nil {
+		return nil, err
+	} else if theaterCounter <= 0 {
+		return nil, errors.New("invalid theater id")
+	}
+
 	query := `select s.id as show_id,t.theater_name as theater_name,h.hall_name as hall_name,
         m.title as movie_name,m.language,s.starts_at,s.ends_at,s.base_price from theaters as t
 		join halls as h on t.id=h.theater_id
@@ -53,7 +64,7 @@ func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]mo
 		`
 
 	var shows []models.TheaterShows
-	err := r.db.SelectContext(c, &shows, query, TheaterId)
+	err = r.db.SelectContext(c, &shows, query, TheaterId)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +207,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	}
 
 	var bookingData models.SeatBooking
-	// user_id,show_id,total_price
+	//preparing return data
 	err = tx.GetContext(c, &bookingData, `select id,user_id,show_id,total_amount from bookings where id=$1`, bookingID)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,11 +43,12 @@ func (h *TheaterHandler) GetShows(c *gin.Context) {
 
 	TheaterId := c.Param("id")
 	theaterIdInt, err := strconv.Atoi(TheaterId)
-	if err != nil {
+	if err != nil || theaterIdInt <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "theater id is invalid",
+			"error": "invalid theater id",
 		})
 		return
+
 	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
@@ -54,16 +56,35 @@ func (h *TheaterHandler) GetShows(c *gin.Context) {
 
 	shows, err := h.service.GetShowsService(ctx, theaterIdInt)
 	if err != nil {
+
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "theater not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": errMsg,
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
+
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"TheaterID":       theaterIdInt,
-		"shows_available": shows,
-	})
+	if len(shows) <= 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"theater_id": theaterIdInt,
+			"message":    "no shows available right at the moment",
+			"shows":      shows,
+		})
+		return
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"TheaterID":       theaterIdInt,
+			"shows_available": shows,
+		})
+	}
+
 }
 
 func (h *TheaterHandler) GetSeatsHandler(c *gin.Context) {

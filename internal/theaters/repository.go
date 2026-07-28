@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/deeep8250/movie-ticket-booking-system/internal/config"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/models"
@@ -51,7 +52,7 @@ func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]mo
 	if err != nil {
 		return nil, err
 	} else if theaterCounter <= 0 {
-		return nil, errors.New("invalid theater id")
+		return nil, errors.New("theater not found")
 	}
 
 	query := `select s.id as show_id,t.theater_name as theater_name,h.hall_name as hall_name,
@@ -74,6 +75,18 @@ func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]mo
 }
 
 func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.SeatsInShows, error) {
+
+	//  checking if the given show id is valid or not
+	var ShowCount int
+	q := `select count(*) from shows where id=$1`
+	err := r.db.GetContext(c, &ShowCount, q, showsId)
+	if err != nil {
+		return nil, err
+	} else if ShowCount <= 0 {
+		return nil, errors.New("show not found")
+	}
+
+	//
 
 	var Seats []models.Seats
 	query := `SELECT 
@@ -101,7 +114,7 @@ func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.Se
 	WHERE sh.id = $1
 	ORDER BY s.id;`
 
-	err := r.db.SelectContext(c, &Seats, query, showsId)
+	err = r.db.SelectContext(c, &Seats, query, showsId)
 	if err != nil {
 		return nil, err
 	}
@@ -149,16 +162,23 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	}
 
 	// 1 validate seats belongs to the show and active also
-	var validSeatCount int
-	err = tx.GetContext(c, &validSeatCount, `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where sh.id=$1 and s.id=any($2) and s.is_active=true`, showID, pq.Array(seats))
+	var validSeatIDs []int
+	err = tx.SelectContext(c, &validSeatIDs, `select s.id from seats as s join shows as sh on sh.hall_id=s.hall_id where sh.id=$1 and s.id=any($2) and s.is_active=true`, showID, pq.Array(seats))
 	if err != nil {
 		return nil, err
 	}
 
-	if validSeatCount != len(seats) {
-		return nil, errors.New("one or more seats are invalid for this show")
+	var invalidSeatIDs []int
+	for i := range seats {
+		NotPresent := !slices.Contains(validSeatIDs, seats[i])
+		if NotPresent {
+			invalidSeatIDs = append(invalidSeatIDs, seats[i])
+		}
 	}
 
+	if len(invalidSeatIDs) > 0 {
+		return nil, fmt.Errorf("invalid seats for this show: %v", invalidSeatIDs)
+	}
 	// 2 check already booked seats
 
 	var bookedSeatIds []int
@@ -179,6 +199,9 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	}
 
 	totalAmount := float64(len(seats)) * basePrice
+	if totalAmount <= 10 {
+		return nil, errors.New("invalid total amount")
+	}
 
 	// 4. Create booking row
 
@@ -191,9 +214,17 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	// 5. Insert selected seats
 
 	for _, seatID := range seats {
-		_, err := tx.ExecContext(c, `insert into seat_bookings(booking_id,show_id,seat_id) values($1,$2,$3)`, bookingID, showID, seatID)
+		rows, err := tx.ExecContext(c, `insert into seat_bookings(booking_id,show_id,seat_id) values($1,$2,$3)`, bookingID, showID, seatID)
 		if err != nil {
 			return nil, err
+		}
+
+		rowsAffected, err := rows.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		if rowsAffected == 0 {
+			return nil, fmt.Errorf("unable to book the seat %v", seatID)
 		}
 
 	}
@@ -201,7 +232,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	// 5.1 fetching the final data that need to return
 	var data []int
 
-	err = tx.SelectContext(c, &data, `select s.id as seat_booked from seat_bookings as s where booking_id=$1`, bookingID)
+	err = tx.SelectContext(c, &data, `select s.seat_id as seat_booked from seat_bookings as s where booking_id=$1`, bookingID)
 	if err != nil {
 		return nil, err
 	}

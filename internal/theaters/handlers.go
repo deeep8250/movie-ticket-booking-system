@@ -91,7 +91,7 @@ func (h *TheaterHandler) GetSeatsHandler(c *gin.Context) {
 
 	ShowId := c.Param("id")
 	ShowIdInt, err := strconv.Atoi(ShowId)
-	if err != nil {
+	if err != nil || ShowIdInt <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid show id",
 		})
@@ -100,8 +100,17 @@ func (h *TheaterHandler) GetSeatsHandler(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
+
 	SeatsAvailableForShows, err := h.service.GetSeatsService(ctx, ShowIdInt)
 	if err != nil {
+
+		if strings.Contains(err.Error(), "show not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "show not found",
+			})
+			return
+
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -147,6 +156,40 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 	defer cancel()
 	bookingData, err := h.service.BookSeatService(ctx, userInput.UserId, userInput.ShowId, userInput.Seats)
 	if err != nil {
+
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "show not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "show not found",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "invalid seats for this show") {
+
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid seats for this show",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "seats already booked") {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "invalid total amount") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid total amount",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "unable to book the seat") {
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})

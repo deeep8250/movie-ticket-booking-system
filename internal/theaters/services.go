@@ -128,3 +128,34 @@ func (s *TheaterService) GetBookingByBookingsIdService(c context.Context, bookin
 	return &bookingDetailsDTo, nil
 
 }
+
+func (s *TheaterService) UserBookingHistoryService(c context.Context, userID int) (*dto.BookingHistoryWithUsrDtlsAtchd, error) {
+
+	Username, BookingHistoriesFromRepo, err := s.repo.UserBookingHistoryRepo(c, userID)
+	if err != nil {
+		return nil, err
+	}
+	bookingHistoryResponse := dto.BookingHistoryWithUsrDtlsAtchd{
+		UserID:   userID,
+		Username: Username,
+	}
+
+	for _, history := range BookingHistoriesFromRepo {
+
+		bookingHistoryDTO := dto.BookingHistory{
+			BookingID:   history.BookingID,
+			CreatedAt:   history.CreatedAt,
+			HallName:    history.HallName,
+			MovieName:   history.MovieName,
+			SeatCount:   history.SeatCount,
+			Status:      history.Status,
+			TheaterName: history.TheaterName,
+			TotalAmount: history.TotalAmount,
+		}
+		bookingHistoryResponse.BookingHitories = append(bookingHistoryResponse.BookingHitories, bookingHistoryDTO)
+
+	}
+
+	return &bookingHistoryResponse, nil
+
+}

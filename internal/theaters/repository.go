@@ -326,3 +326,47 @@ ORDER BY
 	return &BookingDetails, nil
 
 }
+
+func (r *TheaterRepository) UserBookingHistoryRepo(c context.Context, userID int) (string, []models.BookingHistory, error) {
+
+	//check if the user is exists or not
+	query1 := `select username from users where id=$1`
+	var UserName string
+	err := r.db.GetContext(c, &UserName, query1, userID)
+	if err != nil {
+		return "", nil, err
+	}
+	if UserName == "" {
+		return "", nil, errors.New("user not found")
+	}
+
+	query2 := `SELECT b.id AS booking_id,m.title AS movie_name,t.theater_name,h.hall_name,COUNT(sb.id) AS seat_count,b.status,b.total_amount,b.created_at FROM users AS u
+               JOIN bookings AS b ON b.user_id = u.id
+               JOIN seat_bookings AS sb ON sb.booking_id = b.id
+               JOIN shows AS sh ON sh.id = b.show_id
+               JOIN movies AS m ON m.id = sh.movie_id
+               JOIN halls AS h ON h.id = sh.hall_id
+               JOIN theaters AS t ON t.id = h.theater_id
+               WHERE u.id = $1
+               GROUP BY 
+			            b.id,
+			            m.title,
+                        t.theater_name,
+                        h.hall_name,
+                        b.status,
+                        b.total_amount,
+                        b.created_at
+              ORDER BY b.created_at DESC;`
+
+	var BookingHstry []models.BookingHistory
+	err = r.db.SelectContext(c, &BookingHstry, query2, userID)
+	if err != nil {
+		return "", nil, err
+	}
+	if len(BookingHstry) == 0 {
+		return UserName, nil, errors.New("no booking history found")
+	}
+
+	return UserName, BookingHstry, nil
+
+}

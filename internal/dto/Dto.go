@@ -43,6 +43,21 @@ type SeatBooking struct {
 	TotalPrice  float64 `json:"total_price"`
 }
 
+type BookingsDetails struct {
+	BookingID   int       `json:"booking_id"`
+	UserID      int       `json:"user_id"`
+	UserName    string    `json:"username"`
+	ShowID      int       `json:"show_id"`
+	MovieName   string    `json:"movie_name"`
+	TheaterName string    `json:"theater_name"`
+	HallName    string    `json:"hall_name"`
+	SeatID      []int     `json:"seat_id"`
+	SeatNumber  []string  `json:"seat_number"`
+	Status      string    `json:"status"`
+	TotalAmount int       `json:"total_amount"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // create table if not exists seat_bookings(
 // id bigserial primary key,
 // booking_id bigint not null references bookings(id),

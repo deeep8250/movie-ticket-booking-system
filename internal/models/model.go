@@ -42,3 +42,18 @@ type SeatBooking struct {
 	SeatsBooked []int   `db:"seats_booked"`
 	TotalPrice  float64 `db:"total_amount"`
 }
+
+type BookingsDetails struct {
+	BookingID   int       `db:"booking_id"`
+	UserID      int       `db:"user_id"`
+	UserName    string    `db:"username"`
+	ShowID      int       `db:"show_id"`
+	MovieName   string    `db:"movie_name"`
+	TheaterName string    `db:"theater_name"`
+	HallName    string    `db:"hall_name"`
+	SeatID      []int     `db:"seat_id"`
+	SeatNumber  []string  `db:"seat_number"`
+	Status      string    `db:"status"`
+	TotalAmount float64   `db:"total_amount"`
+	CreatedAt   time.Time `db:"created_at"`
+}

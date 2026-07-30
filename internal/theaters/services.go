@@ -101,3 +101,30 @@ func (s *TheaterService) BookSeatService(c context.Context, userID, showID int, 
 
 	return &bookingD, nil
 }
+
+func (s *TheaterService) GetBookingByBookingsIdService(c context.Context, bookingID int) (*dto.BookingsDetails, error) {
+
+	bookingDetails, err := s.repo.GetBookingByBookingsId(c, bookingID)
+	if err != nil {
+		return nil, err
+	}
+
+	bookingDetailsDTo := dto.BookingsDetails{
+
+		BookingID:   bookingDetails.BookingID,
+		UserID:      bookingDetails.UserID,
+		UserName:    bookingDetails.UserName,
+		ShowID:      bookingDetails.ShowID,
+		MovieName:   bookingDetails.MovieName,
+		TheaterName: bookingDetails.TheaterName,
+		HallName:    bookingDetails.HallName,
+		SeatID:      bookingDetails.SeatID,
+		SeatNumber:  bookingDetails.SeatNumber,
+		Status:      bookingDetails.Status,
+		TotalAmount: int(bookingDetails.TotalAmount),
+		CreatedAt:   bookingDetails.CreatedAt,
+	}
+
+	return &bookingDetailsDTo, nil
+
+}

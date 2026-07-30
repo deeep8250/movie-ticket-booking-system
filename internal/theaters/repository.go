@@ -255,3 +255,74 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	return &bookingData, err
 
 }
+
+func (r *TheaterRepository) GetBookingByBookingsId(c context.Context, bookingID int) (*models.BookingsDetails, error) {
+	var bookingDetailsCount int
+	q1 := `select count(*) from bookings where id=$1`
+	err := r.db.GetContext(c, &bookingDetailsCount, q1, bookingID)
+	if err != nil {
+		return nil, err
+	}
+	if bookingDetailsCount == 0 {
+		return nil, errors.New("booking not found")
+	}
+
+	// fetching seat id and seat numbers according to the booking id
+	type SeatDetails struct {
+		SeatIds     int    `db:"seat_id"`
+		SeatNumbers string `db:"seat_number"`
+	}
+	var S []SeatDetails
+	q2 := `select s.id as seat_id,s.seat_number  from seat_bookings as sb join seats as s on sb.seat_id=s.id where sb.booking_id=$1 order by(sb.id,s.id);`
+	err = r.db.SelectContext(c, &S, q2, bookingID)
+	if err != nil {
+		return nil, err
+	}
+	if len(S) == 0 {
+		return nil, errors.New("no seat booked yet")
+	}
+
+	query := `SELECT 
+    b.id AS booking_id,
+    u.id AS user_id,
+    u.username,
+    sh.id AS show_id,
+    m.title AS movie_name,
+    t.theater_name,
+    h.hall_name,
+    b.status,
+    b.total_amount,
+    b.created_at
+FROM bookings AS b
+JOIN users AS u 
+    ON b.user_id = u.id
+JOIN shows AS sh 
+    ON b.show_id = sh.id
+JOIN movies AS m 
+    ON m.id = sh.movie_id
+JOIN halls AS h 
+    ON h.id = sh.hall_id
+JOIN theaters AS t 
+    ON t.id = h.theater_id
+
+WHERE b.id = $1
+ORDER BY 
+    t.id,
+    h.id,
+    sh.id;`
+
+	var BookingDetails models.BookingsDetails
+	err = r.db.GetContext(c, &BookingDetails, query, bookingID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, s := range S {
+		BookingDetails.SeatID = append(BookingDetails.SeatID, s.SeatIds)
+		BookingDetails.SeatNumber = append(BookingDetails.SeatNumber, s.SeatNumbers)
+
+	}
+
+	return &BookingDetails, nil
+
+}

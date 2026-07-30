@@ -203,3 +203,28 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 	})
 
 }
+
+func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
+	BookingId := c.Param("id")
+	BooingIdInt, err := strconv.Atoi(BookingId)
+	if err != nil || BooingIdInt <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid booking id"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, time.Second*5)
+	defer cancel()
+
+	BookingDetails, err := h.service.GetBookingByBookingsIdService(ctx, BooingIdInt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"details": BookingDetails,
+	})
+
+}

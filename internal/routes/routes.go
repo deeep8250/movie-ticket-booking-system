@@ -20,5 +20,6 @@ func Routes(r *gin.Engine) {
 		p.GET("/theaters/shows/:id", theaterHandler.GetShows)
 		p.GET("/theaters/shows/:id/seats", theaterHandler.GetSeatsHandler)
 		p.POST("/bookings", theaterHandler.BookSeatHandler)
+		p.GET("/booking/:id/details", theaterHandler.GetBookingDetailsFromId)
 	}
 }

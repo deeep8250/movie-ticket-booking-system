@@ -223,8 +223,36 @@ func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusFound, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"details": BookingDetails,
+	})
+
+}
+
+func (h *TheaterHandler) UserBookingHistory(c *gin.Context) {
+
+	userID := c.Param("id")
+	userIDint, err := strconv.Atoi(userID)
+	if err != nil || userIDint <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, time.Second*5)
+	defer cancel()
+
+	userHistories, err := h.service.UserBookingHistoryService(ctx, userIDint)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"BookingHitories": userHistories,
 	})
 
 }

@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type Theater struct {
 	Id            int    `db:"id"`
@@ -53,6 +55,18 @@ type BookingsDetails struct {
 	HallName    string    `db:"hall_name"`
 	SeatID      []int     `db:"seat_id"`
 	SeatNumber  []string  `db:"seat_number"`
+	Status      string    `db:"status"`
+	TotalAmount float64   `db:"total_amount"`
+	CreatedAt   time.Time `db:"created_at"`
+}
+
+type BookingHistory struct {
+	BookingID   int       `db:"booking_id"`
+	Username    string    `db:"username"`
+	MovieName   string    `db:"movie_name"`
+	TheaterName string    `db:"theater_name"`
+	HallName    string    `db:"hall_name"`
+	SeatCount   int       `db:"seat_count"`
 	Status      string    `db:"status"`
 	TotalAmount float64   `db:"total_amount"`
 	CreatedAt   time.Time `db:"created_at"`

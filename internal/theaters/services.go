@@ -159,3 +159,19 @@ func (s *TheaterService) UserBookingHistoryService(c context.Context, userID int
 	return &bookingHistoryResponse, nil
 
 }
+
+func (s *TheaterService) BookingCancelService(c context.Context, BookingID int) (*dto.BookingsDto, error) {
+	bookingCancelationDetails, err := s.repo.BookingCancelRepo(c, BookingID)
+	if err != nil {
+		return nil, err
+	}
+	bd := &dto.BookingsDto{
+		UserID:      bookingCancelationDetails.UserID,
+		ShowID:      bookingCancelationDetails.ShowID,
+		Status:      bookingCancelationDetails.Status,
+		TotalAmount: bookingCancelationDetails.TotalAmount,
+		CreatedAt:   bookingCancelationDetails.CreatedAt,
+		UpdatedAt:   bookingCancelationDetails.UpdatedAt,
+	}
+	return bd, nil
+}

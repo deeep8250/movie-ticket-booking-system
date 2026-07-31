@@ -286,3 +286,35 @@ func (h *TheaterHandler) UserBookingHistory(c *gin.Context) {
 	})
 
 }
+
+func (h *TheaterHandler) BookingCancelation(c *gin.Context) {
+	BookingId := c.Param("id")
+	BoookingIDint, err := strconv.Atoi(BookingId)
+	if err != nil || BoookingIDint <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid booking id",
+		})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
+	defer cancel()
+	cancelledBooking, err := h.service.BookingCancelService(ctx, BoookingIDint)
+	if err != nil {
+
+		if strings.Contains(err.Error(), "booking not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "booking not found",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"booking_cancelled": cancelledBooking,
+	})
+}

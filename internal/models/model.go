@@ -71,3 +71,12 @@ type BookingHistory struct {
 	TotalAmount float64   `db:"total_amount"`
 	CreatedAt   time.Time `db:"created_at"`
 }
+
+type Bookings struct {
+	UserID      int       `db:"user_id"`
+	ShowID      int       `db:"show_id"`
+	Status      string    `db:"status"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+	TotalAmount float64   `db:"total_amount"`
+}

@@ -2,6 +2,7 @@ package theaters
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
@@ -368,5 +369,49 @@ func (r *TheaterRepository) UserBookingHistoryRepo(c context.Context, userID int
 	}
 
 	return UserName, BookingHstry, nil
+
+}
+
+func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID int) (*models.Bookings, error) {
+
+	//check if the user is exists or not
+
+	type BookingAndStatusCheck struct {
+		Id     int    `db:"id"`
+		Status string `db:"status"`
+	}
+	var BASC BookingAndStatusCheck
+
+	query1 := `select id,status from bookings where id=$1`
+
+	err := r.db.GetContext(c, &BASC, query1, BookingID)
+	if err != nil {
+		return nil, err
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.New("booking id not found")
+	} else if BASC.Status == "cancelled" {
+		return nil, errors.New("booking is already cancelled")
+	}
+
+	q2 := `update bookings 
+	set 
+	   status='cancelled'
+	   updated_at=NOW()
+    where id=$1  
+	returning user_id,
+              show_id,
+              status,
+              total_amount,
+              created_at,
+              updated_at;`
+
+	var bookingDetails models.Bookings
+	err = r.db.GetContext(c, &bookingDetails, q2, BookingID)
+
+	if err != nil {
+		return nil, err
+	}
+	return &bookingDetails, nil
 
 }

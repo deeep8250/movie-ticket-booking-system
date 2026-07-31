@@ -74,3 +74,12 @@ type BookingHistoryWithUsrDtlsAtchd struct {
 	Username        string           `json:"username"`
 	BookingHitories []BookingHistory `json:"bookings"`
 }
+
+type BookingsDto struct {
+	UserID      int       `json:"user_id"`
+	ShowID      int       `json:"show_id"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	TotalAmount float64   `json:"total_amount"`
+}

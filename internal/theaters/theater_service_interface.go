@@ -13,4 +13,5 @@ type TheaterServiceInterface interface {
 	BookSeatService(c context.Context, userID, showID int, seats []int) (*dto.SeatBooking, error)
 	GetBookingByBookingsIdService(c context.Context, bookingID int) (*dto.BookingsDetails, error)
 	UserBookingHistoryService(c context.Context, userID int) (*dto.BookingHistoryWithUsrDtlsAtchd, error)
+	BookingCancelService(c context.Context, userID int) (*dto.BookingsDto, error)
 }

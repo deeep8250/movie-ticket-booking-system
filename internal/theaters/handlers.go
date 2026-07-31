@@ -212,15 +212,30 @@ func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c, time.Second*5)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
 
 	BookingDetails, err := h.service.GetBookingByBookingsIdService(ctx, BooingIdInt)
+
 	if err != nil {
+		if strings.Contains(err.Error(), "booking not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "booking not found",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "no seat booked yet") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "no seat booked yet",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": " internal server error ",
 		})
 		return
+
 	}
 
 	c.JSON(http.StatusOK, gin.H{

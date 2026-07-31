@@ -235,24 +235,39 @@ func (h *TheaterHandler) UserBookingHistory(c *gin.Context) {
 	userIDint, err := strconv.Atoi(userID)
 	if err != nil || userIDint <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"error": "invalid user id",
 		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c, time.Second*5)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
 
 	userHistories, err := h.service.UserBookingHistoryService(ctx, userIDint)
 	if err != nil {
+
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "no booking history found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "no booking history found",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "internal server error",
 		})
 		return
+
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"BookingHitories": userHistories,
+		"booking_history": userHistories,
 	})
 
 }

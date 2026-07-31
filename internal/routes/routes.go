@@ -22,5 +22,6 @@ func Routes(r *gin.Engine) {
 		p.POST("/bookings", theaterHandler.BookSeatHandler)
 		p.GET("/bookings/:id/details", theaterHandler.GetBookingDetailsFromId)
 		p.GET("/users/:id/bookings", theaterHandler.UserBookingHistory)
+		p.PATCH("/bookings/:id/cancel", theaterHandler.BookingCancelation)
 	}
 }

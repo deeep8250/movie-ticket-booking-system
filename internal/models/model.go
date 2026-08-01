@@ -73,6 +73,7 @@ type BookingHistory struct {
 }
 
 type Bookings struct {
+	BookingID   int       `db:"booking_id"`
 	UserID      int       `db:"user_id"`
 	ShowID      int       `db:"show_id"`
 	Status      string    `db:"status"`

@@ -166,6 +166,7 @@ func (s *TheaterService) BookingCancelService(c context.Context, BookingID int) 
 		return nil, err
 	}
 	bd := &dto.BookingsDto{
+		BookingID:   bookingCancelationDetails.BookingID,
 		UserID:      bookingCancelationDetails.UserID,
 		ShowID:      bookingCancelationDetails.ShowID,
 		Status:      bookingCancelationDetails.Status,

@@ -176,3 +176,26 @@ func (s *TheaterService) BookingCancelService(c context.Context, BookingID int) 
 	}
 	return bd, nil
 }
+
+func (s *TheaterService) GetMoviesService(c context.Context) ([]dto.GetMovies, error) {
+	movies, err := s.repo.GetMoviesRepo(c)
+	if err != nil {
+		return nil, err
+	}
+
+	var ReturnedMovies []dto.GetMovies
+	for _, movie := range movies {
+		m := dto.GetMovies{
+			MoviesID:    movie.MoviesID,
+			Title:       movie.Title,
+			Language:    movie.Language,
+			DurationMin: movie.DurationMin,
+			ReleaseDate: movie.ReleaseDate,
+		}
+
+		ReturnedMovies = append(ReturnedMovies, m)
+	}
+
+	return ReturnedMovies, nil
+
+}

@@ -450,3 +450,14 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID int) 
 	return &bookingDetails, nil
 
 }
+
+func (r *TheaterRepository) GetMoviesRepo(c context.Context) ([]models.GetMovies, error) {
+	var movies []models.GetMovies
+	query := `select id,title,language,duration_min,release_date from movies`
+	err := r.db.SelectContext(c, &movies, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return movies, err
+}

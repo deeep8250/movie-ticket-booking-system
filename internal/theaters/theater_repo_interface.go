@@ -14,4 +14,5 @@ type TheaterRepoInterface interface {
 	GetBookingByBookingsId(c context.Context, bookingID int) (*models.BookingsDetails, error)
 	UserBookingHistoryRepo(c context.Context, userID int) (string, []models.BookingHistory, error)
 	BookingCancelRepo(c context.Context, BookingID int) (*models.Bookings, error)
+	GetMoviesRepo(c context.Context) ([]models.GetMovies, error)
 }

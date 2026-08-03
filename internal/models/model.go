@@ -81,3 +81,11 @@ type Bookings struct {
 	UpdatedAt   time.Time `db:"updated_at"`
 	TotalAmount float64   `db:"total_amount"`
 }
+
+type GetMovies struct {
+	MoviesID    int       `db:"id"`
+	Title       string    `db:"title"`
+	Language    string    `db:"language"`
+	DurationMin int       `db:"duration_min"`
+	ReleaseDate time.Time `db:"release_date"`
+}

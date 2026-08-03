@@ -84,3 +84,11 @@ type BookingsDto struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	TotalAmount float64   `json:"total_amount"`
 }
+
+type GetMovies struct {
+	MoviesID    int       `json:"movie_id"`
+	Title       string    `json:"title"`
+	Language    string    `json:"language"`
+	DurationMin int       `json:"duration_min"`
+	ReleaseDate time.Time `json:"release_date"`
+}

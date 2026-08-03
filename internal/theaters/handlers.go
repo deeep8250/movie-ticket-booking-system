@@ -318,3 +318,23 @@ func (h *TheaterHandler) BookingCancelation(c *gin.Context) {
 		"booking_cancelled": cancelledBooking,
 	})
 }
+
+func (h *TheaterHandler) GetMoviesHandler(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
+	defer cancel()
+
+	movies, err := h.service.GetMoviesService(ctx)
+	if err != nil {
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"movies_available": movies,
+	})
+
+}

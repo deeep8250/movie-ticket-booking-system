@@ -90,30 +90,57 @@ func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.Se
 	//
 
 	var Seats []models.Seats
+	// query := `SELECT
+	// 	s.id AS seat_id,
+	// 	s.seat_number,
+	// 	s.seat_type,
+	// 	CASE
+	// 		WHEN s.is_active = false THEN 'disabled'
+	// 		WHEN sb.id IS NOT NULL   AND b.status='confirmed' THEN 'booked'
+	// 		WHEN sb.id IS NOT NULL   AND b.status='cancelled' THEN 'available'
+
+	// 		ELSE 'available'
+	// 	END AS status
+
+	// FROM seats AS s
+	// JOIN shows AS sh
+	// 	ON sh.hall_id = s.hall_id
+
+	// LEFT JOIN seat_bookings AS sb
+	//    ON sb.seat_id = s.id
+	// 	AND sb.show_id = sh.id
+
+	// LEFT JOIN bookings as b
+	//     ON b.id=sb.booking_id
+
+	// WHERE sh.id = $1
+	//  ORDER BY s.id;`
+
 	query := `SELECT 
-		s.id AS seat_id,
-		s.seat_number,
-		s.seat_type,
-		CASE
-			WHEN s.is_active = false THEN 'disabled'
-			WHEN sb.id IS NOT NULL THEN 'booked'
-			ELSE 'available'
-		END AS status
-
-
-	FROM seats AS s
-	JOIN shows AS sh 
-		ON sh.hall_id = s.hall_id
-
-
-	LEFT JOIN seat_bookings AS sb 
-	   ON sb.seat_id = s.id
-		AND sb.show_id = sh.id
-
-
-		
-	WHERE sh.id = $1
-	ORDER BY s.id;`
+    s.id AS seat_id,
+    s.seat_number,
+    s.seat_type,
+    CASE
+        WHEN s.is_active = false THEN 'disabled'
+        WHEN active_booking.seat_id IS NOT NULL THEN 'booked'
+        ELSE 'available'
+    END AS status
+FROM seats AS s
+JOIN shows AS sh 
+    ON sh.hall_id = s.hall_id
+LEFT JOIN (
+    SELECT DISTINCT
+        sb.seat_id,
+        sb.show_id
+    FROM seat_bookings AS sb
+    JOIN bookings AS b
+        ON b.id = sb.booking_id
+    WHERE b.status IN ('confirmed', 'pending')
+) AS active_booking
+    ON active_booking.seat_id = s.id
+    AND active_booking.show_id = sh.id
+WHERE sh.id = $1
+ORDER BY s.id;`
 
 	err = r.db.SelectContext(c, &Seats, query, showsId)
 	if err != nil {
@@ -183,7 +210,14 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	// 2 check already booked seats
 
 	var bookedSeatIds []int
-	err = tx.SelectContext(c, &bookedSeatIds, `select seat_id from seat_bookings where seat_id=any($1) and show_id=$2`, pq.Array(seats), showID)
+	err = tx.SelectContext(c, &bookedSeatIds,
+		`SELECT sb.seat_id
+         FROM seat_bookings AS sb
+         JOIN bookings AS b
+         ON b.id = sb.booking_id
+         WHERE sb.seat_id = ANY($1)
+         AND sb.show_id = $2
+         AND b.status IN ('confirmed', 'pending');`, pq.Array(seats), showID)
 	if err != nil {
 		return nil, err
 	}
@@ -396,10 +430,11 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID int) 
 
 	q2 := `update bookings 
 	set 
-	   status='cancelled'
+	   status='cancelled',
 	   updated_at=NOW()
     where id=$1  
-	returning user_id,
+	returning id as booking_id,
+	          user_id,
               show_id,
               status,
               total_amount,

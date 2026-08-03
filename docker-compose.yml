@@ -2,7 +2,7 @@ services:
  app:
   build: .
   ports:
-   - "8000:8080"
+   - "6000:8080"
   env_file:
    - .env
   depends_on:

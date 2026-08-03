@@ -461,3 +461,14 @@ func (r *TheaterRepository) GetMoviesRepo(c context.Context) ([]models.GetMovies
 
 	return movies, err
 }
+func (r *TheaterRepository) GetMovieByIDRepo(c context.Context, id int) (*models.GetMovies, error) {
+
+	var movie models.GetMovies
+
+	query := `select id,title,language,duration_min,release_date from movies where id=$1`
+	err := r.db.GetContext(c, &movie, query, id)
+	if err != nil {
+		return nil, err
+	}
+	return &movie, nil
+}

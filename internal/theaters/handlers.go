@@ -338,3 +338,29 @@ func (h *TheaterHandler) GetMoviesHandler(c *gin.Context) {
 	})
 
 }
+
+func (h *TheaterHandler) GetMoviesByIDHandler(c *gin.Context) {
+	MovieID := c.Param("id")
+	MovieIDint, err := strconv.Atoi(MovieID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invlid input",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
+	defer cancel()
+
+	movie, err := h.service.GetMovieByIDService(ctx, MovieIDint)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"movie": movie,
+	})
+}

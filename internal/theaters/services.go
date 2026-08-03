@@ -199,3 +199,20 @@ func (s *TheaterService) GetMoviesService(c context.Context) ([]dto.GetMovies, e
 	return ReturnedMovies, nil
 
 }
+
+func (s *TheaterService) GetMovieByIDService(c context.Context, id int) (*dto.GetMovies, error) {
+
+	m, err := s.repo.GetMovieByIDRepo(c, id)
+	if err != nil {
+		return nil, err
+	}
+	movie := dto.GetMovies{
+		MoviesID:    m.MoviesID,
+		Title:       m.Title,
+		Language:    m.Language,
+		DurationMin: m.DurationMin,
+		ReleaseDate: m.ReleaseDate,
+	}
+
+	return &movie, nil
+}

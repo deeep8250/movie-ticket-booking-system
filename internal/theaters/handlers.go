@@ -360,7 +360,7 @@ func (h *TheaterHandler) GetMoviesByIDHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusFound, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"movie": movie,
 	})
 }

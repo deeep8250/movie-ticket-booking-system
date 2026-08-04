@@ -93,7 +93,7 @@ type GetMovies struct {
 type Shows struct {
 	ShowID      int       `db:"show_id"`
 	TheaterName string    `db:"theater_name"`
-	HallName    string    `db:"halll_name"`
+	HallName    string    `db:"hall_name"`
 	City        string    `db:"city"`
 	StartsAt    time.Time `db:"starts_at"`
 	EndsAt      time.Time `db:"ends_at"`

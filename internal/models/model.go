@@ -99,3 +99,13 @@ type Shows struct {
 	EndsAt      time.Time `db:"ends_at"`
 	BasePrice   float64   `db:"base_price"`
 }
+
+type Users struct {
+	UserID       int       `db:"id"`
+	UserName     string    `db:"username"`
+	Email        string    `db:"email"`
+	Mobile       int       `db:"mobile"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+	PasswordHash string    `db:"password_hash"`
+}

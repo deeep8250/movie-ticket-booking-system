@@ -102,3 +102,13 @@ type Shows struct {
 	EndsAt      time.Time `json:"ends_at"`
 	BasePrice   float64   `json:"base_price"`
 }
+
+type Users struct {
+	UserID    int       `json:"id"`
+	UserName  string    `json:"username"`
+	Email     string    `json:"email" binding:"required,email"`
+	Mobile    int       `json:"mobile" binding:"required,min=10"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Password  string    `json:"-" binding:"required,min=5"`
+}

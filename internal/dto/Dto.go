@@ -92,3 +92,13 @@ type GetMovies struct {
 	DurationMin int       `json:"duration_min"`
 	ReleaseDate time.Time `json:"release_date"`
 }
+
+type Shows struct {
+	ShowID      int       `json:"show_id"`
+	TheaterName string    `json:"theater_name"`
+	HallName    string    `json:"halll_name"`
+	City        string    `json:"city"`
+	StartsAt    time.Time `json:"starts_at"`
+	EndsAt      time.Time `json:"ends_at"`
+	BasePrice   float64   `json:"base_price"`
+}

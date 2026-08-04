@@ -16,4 +16,5 @@ type TheaterServiceInterface interface {
 	BookingCancelService(c context.Context, userID int) (*dto.BookingsDto, error)
 	GetMoviesService(c context.Context) ([]dto.GetMovies, error)
 	GetMovieByIDService(c context.Context, id int) (*dto.GetMovies, error)
+	GetShowsByMovieIDService(c context.Context, MovieID int) ([]dto.Shows, error)
 }

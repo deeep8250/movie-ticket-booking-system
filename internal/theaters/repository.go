@@ -472,3 +472,21 @@ func (r *TheaterRepository) GetMovieByIDRepo(c context.Context, id int) (*models
 	}
 	return &movie, nil
 }
+
+func (r *TheaterRepository) GetShowsByMovieIDRepo(c context.Context, MovieID int) ([]models.Shows, error) {
+
+	query := `select sh.id AS show_id, t.theater_name,h.hall_name,t.city,sh.starts_at,sh.ends_at,sh.base_price from shows as sh
+	          join halls as h on h.id=sh.hall_id 
+			  join theaters as t on h.theater_id=t.id 
+			  join movies as m on m.id=sh.movie_id 
+			  where m.id=$1
+			  `
+
+	var AvlShows []models.Shows
+	err := r.db.SelectContext(c, &AvlShows, query, MovieID)
+
+	if err != nil {
+		return nil, err
+	}
+	return AvlShows, nil
+}

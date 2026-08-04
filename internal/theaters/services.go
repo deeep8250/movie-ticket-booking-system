@@ -216,3 +216,28 @@ func (s *TheaterService) GetMovieByIDService(c context.Context, id int) (*dto.Ge
 
 	return &movie, nil
 }
+
+func (s *TheaterService) GetShowsByMovieIDService(c context.Context, MovieID int) ([]dto.Shows, error) {
+
+	sh, err := s.repo.GetShowsByMovieIDRepo(c, MovieID)
+	if err != nil {
+		return nil, err
+	}
+
+	var shows []dto.Shows
+	for _, show := range sh {
+		s := dto.Shows{
+			ShowID:      show.ShowID,
+			TheaterName: show.TheaterName,
+			City:        show.City,
+			HallName:    show.HallName,
+			StartsAt:    show.StartsAt,
+			EndsAt:      show.EndsAt,
+			BasePrice:   show.BasePrice,
+		}
+		shows = append(shows, s)
+	}
+
+	return shows, nil
+
+}

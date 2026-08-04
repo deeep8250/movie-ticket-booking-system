@@ -25,5 +25,6 @@ func Routes(r *gin.Engine) {
 		p.PATCH("/bookings/:id/cancel", theaterHandler.BookingCancelation)
 		p.GET("/movies", theaterHandler.GetMoviesHandler)
 		p.GET("/movies/:id", theaterHandler.GetMoviesByIDHandler)
+		p.GET("/movies/:id/shows", theaterHandler.GetShowByMovieIdHandler)
 	}
 }

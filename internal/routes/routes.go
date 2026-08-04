@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/deeep8250/movie-ticket-booking-system/internal/middleware"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/theaters"
 	statusandhealth "github.com/deeep8250/movie-ticket-booking-system/status_and_health"
 	"github.com/gin-gonic/gin"
@@ -14,8 +15,11 @@ func Routes(r *gin.Engine) {
 	theaterService := theaters.NewTheaterService(theaterRepo)
 	theaterHandler := theaters.NewTheaterHandler(theaterService)
 
-	p := r.Group("/public")
+	r.POST("/signup")
+	r.POST("/login")
+	p := r.Group("/public", middleware.Middleware())
 	{
+
 		p.GET("/theaters", theaterHandler.GetTheaters)
 		p.GET("/theaters/shows/:id", theaterHandler.GetShows)
 		p.GET("/theaters/shows/:id/seats", theaterHandler.GetSeatsHandler)

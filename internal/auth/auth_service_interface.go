@@ -6,7 +6,7 @@ import (
 	"github.com/deeep8250/movie-ticket-booking-system/internal/dto"
 )
 
-type AuthService interface {
-	CreateUserService(c context.Context, useData dto.Users) error
+type AuthServiceInterface interface {
+	CreateUserService(c context.Context, useData dto.UsersRequest) error
 	GetUserService(c context.Context, userID int) (dto.Users, error)
 }

@@ -19,21 +19,29 @@ func Routes(r *gin.Engine) {
 	authRepo := auth.NewAuthRepo()
 	authService := auth.NewAuthService(authRepo)
 	authHandler := auth.NewAuthHandler(authService)
-	r.POST("/user/signup", authHandler.CreateUserHandler)
-	r.POST("/login", authHandler.LoginHandler)
-	r.GET("/user", middleware.Middleware(), authHandler.GetUserHandler)
-	p := r.Group("/public", middleware.Middleware())
+
+	pb := r.Group("/public")
 	{
 
-		p.GET("/theaters", theaterHandler.GetTheaters)
-		p.GET("/theaters/shows/:id", theaterHandler.GetShows)
-		p.GET("/theaters/shows/:id/seats", theaterHandler.GetSeatsHandler)
-		p.POST("/bookings", theaterHandler.BookSeatHandler)
-		p.GET("/bookings/:id/details", theaterHandler.GetBookingDetailsFromId)
-		p.GET("/users/:id/bookings", theaterHandler.UserBookingHistory)
-		p.PATCH("/bookings/:id/cancel", theaterHandler.BookingCancelation)
-		p.GET("/movies", theaterHandler.GetMoviesHandler)
-		p.GET("/movies/:id", theaterHandler.GetMoviesByIDHandler)
-		p.GET("/movies/:id/shows", theaterHandler.GetShowByMovieIdHandler)
+		//public
+		pb.GET("/movies", theaterHandler.GetMoviesHandler)
+		pb.GET("/movies/:id", theaterHandler.GetMoviesByIDHandler)
+		pb.GET("/movies/:id/shows", theaterHandler.GetShowByMovieIdHandler)
+		pb.GET("/theaters", theaterHandler.GetTheaters)
+		pb.GET("/theaters/shows/:id", theaterHandler.GetShows)
+		pb.GET("/theaters/shows/:id/seats", theaterHandler.GetSeatsHandler)
+		pb.POST("/signup", authHandler.CreateUserHandler)
+		pb.POST("/login", authHandler.LoginHandler)
+
 	}
+
+	pv := r.Group("/private", middleware.Middleware())
+	{
+		pv.POST("/bookings", theaterHandler.BookSeatHandler)
+		pv.GET("/bookings/:id/details", theaterHandler.GetBookingDetailsFromId)
+		pv.GET("/users/me/bookings", theaterHandler.UserBookingHistory)
+		pv.PATCH("/bookings/:id/cancel", theaterHandler.BookingCancelation)
+		pv.GET("/user", authHandler.GetUserHandler)
+	}
+
 }

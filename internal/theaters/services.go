@@ -10,7 +10,7 @@ type TheaterService struct {
 	repo TheaterRepoInterface
 }
 
-func NewTheaterService(Repo *TheaterRepository) *TheaterService {
+func NewTheaterService(Repo TheaterRepoInterface) *TheaterService {
 	return &TheaterService{
 		repo: Repo,
 	}
@@ -102,9 +102,9 @@ func (s *TheaterService) BookSeatService(c context.Context, userID, showID int, 
 	return &bookingD, nil
 }
 
-func (s *TheaterService) GetBookingByBookingsIdService(c context.Context, bookingID int) (*dto.BookingsDetails, error) {
+func (s *TheaterService) GetBookingByBookingsIdService(c context.Context, bookingID, userID int) (*dto.BookingsDetails, error) {
 
-	bookingDetails, err := s.repo.GetBookingByBookingsId(c, bookingID)
+	bookingDetails, err := s.repo.GetBookingByBookingsId(c, bookingID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +160,8 @@ func (s *TheaterService) UserBookingHistoryService(c context.Context, userID int
 
 }
 
-func (s *TheaterService) BookingCancelService(c context.Context, BookingID int) (*dto.BookingsDto, error) {
-	bookingCancelationDetails, err := s.repo.BookingCancelRepo(c, BookingID)
+func (s *TheaterService) BookingCancelService(c context.Context, BookingID, userID int) (*dto.BookingsDto, error) {
+	bookingCancelationDetails, err := s.repo.BookingCancelRepo(c, BookingID, userID)
 	if err != nil {
 		return nil, err
 	}

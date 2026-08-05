@@ -291,10 +291,21 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 
 }
 
-func (r *TheaterRepository) GetBookingByBookingsId(c context.Context, bookingID int) (*models.BookingsDetails, error) {
+func (r *TheaterRepository) GetBookingByBookingsId(c context.Context, bookingID, userID int) (*models.BookingsDetails, error) {
+
+	q0 := `select count(*) from users where id=$1`
+	var UserCount int
+	err := r.db.GetContext(c, &UserCount, q0, userID)
+	if err != nil {
+		return nil, err
+	}
+	if UserCount == 0 {
+		return nil, errors.New("user not found")
+	}
+
 	var bookingDetailsCount int
 	q1 := `select count(*) from bookings where id=$1`
-	err := r.db.GetContext(c, &bookingDetailsCount, q1, bookingID)
+	err = r.db.GetContext(c, &bookingDetailsCount, q1, bookingID)
 	if err != nil {
 		return nil, err
 	}
@@ -406,9 +417,18 @@ func (r *TheaterRepository) UserBookingHistoryRepo(c context.Context, userID int
 
 }
 
-func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID int) (*models.Bookings, error) {
+func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, userID int) (*models.Bookings, error) {
 
 	//check if the user is exists or not
+	q0 := `select count(*) from bookings where user_id=$1`
+	var userCount int
+	err := r.db.GetContext(c, &userCount, q0, userID)
+	if err != nil {
+		return nil, err
+	}
+	if userCount == 0 {
+		return nil, errors.New("user not found")
+	}
 
 	type BookingAndStatusCheck struct {
 		Id     int    `db:"id"`
@@ -418,7 +438,7 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID int) 
 
 	query1 := `select id,status from bookings where id=$1`
 
-	err := r.db.GetContext(c, &BASC, query1, BookingID)
+	err = r.db.GetContext(c, &BASC, query1, BookingID)
 	if err != nil {
 		return nil, err
 	}

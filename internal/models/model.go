@@ -104,7 +104,7 @@ type Users struct {
 	UserID       int       `db:"id"`
 	UserName     string    `db:"username"`
 	Email        string    `db:"email"`
-	Mobile       int       `db:"mobile"`
+	Mobile       string    `db:"mobile"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 	PasswordHash string    `db:"password_hash"`

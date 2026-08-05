@@ -104,18 +104,23 @@ type Shows struct {
 }
 
 type UsersRequest struct {
-	UserName string `json:"username"`
+	UserName string `json:"username" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
-	Mobile   int    `json:"mobile" binding:"required,min=10"`
+	Mobile   string `json:"mobile" binding:"required,min=10"`
 	Password string `json:"password" binding:"required,min=5"`
 }
 
 type Users struct {
-	UserID       int       `json:"id"`
-	UserName     string    `json:"username"`
-	Email        string    `json:"email" `
-	Mobile       int       `json:"mobile" `
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	PasswordHash string    `json:"-" `
+	UserID    int       `json:"id"`
+	UserName  string    `json:"username"`
+	Email     string    `json:"email" `
+	Mobile    string    `json:"mobile" `
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Password  string    `json:"-" `
+}
+
+type UserLogin struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=5"`
 }

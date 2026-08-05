@@ -8,5 +8,6 @@ import (
 
 type AuthServiceInterface interface {
 	CreateUserService(c context.Context, useData dto.UsersRequest) error
-	GetUserService(c context.Context, userID int) (dto.Users, error)
+	GetUserService(c context.Context, userID int) (*dto.Users, error)
+	LoginService(c context.Context, cred dto.UserLogin) (string, error)
 }

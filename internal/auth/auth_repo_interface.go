@@ -8,7 +8,10 @@ import (
 )
 
 type AuthRepoInterface interface {
-	CreateUserRepo(c context.Context, useData dto.Users) error
-	GetUserRepo(c context.Context, userID int) (models.Users, error)
-	GetUserByIdRepo(c context.Context, userID int) (string, error)
+	CreateUserRepo(c context.Context, userData dto.UsersRequest) error
+	GetUserRepo(c context.Context, userID int) (*models.Users, error)
+
+	GetUserByEmailRepo(c context.Context, Email string) (*models.Users, error)
+	VerifyEmail(c context.Context, Email string) (bool, error)
+	VerifyMobile(c context.Context, mobile string) (bool, error)
 }

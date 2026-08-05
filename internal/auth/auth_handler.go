@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,7 +14,7 @@ type AuthHandler struct {
 	service AuthServiceInterface
 }
 
-func NewTheaterHandler(S AuthServiceInterface) *AuthHandler {
+func NewAuthHandler(S AuthServiceInterface) *AuthHandler {
 	return &AuthHandler{
 		service: S,
 	}
@@ -36,9 +35,9 @@ func (h *AuthHandler) CreateUserHandler(c *gin.Context) {
 
 	err = h.service.CreateUserService(ctx, userInput)
 	if err != nil {
-		if strings.Contains(err.Error(), "user not found") {
+		if strings.Contains(err.Error(), "user already exists") {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "user not found",
+				"error": "user already exists",
 			})
 			return
 		}
@@ -53,8 +52,40 @@ func (h *AuthHandler) CreateUserHandler(c *gin.Context) {
 
 }
 func (h *AuthHandler) GetUserHandler(c *gin.Context) {
-	userID := c.Param("id")
-	userIDint, err := strconv.Atoi(userID)
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "u",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
+	defer cancel()
+
+	user, err := h.service.GetUserService(ctx, userID.(int))
+	if err != nil {
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user": user,
+	})
+
+}
+
+func (h *AuthHandler) LoginHandler(c *gin.Context) {
+	var Credentials dto.UserLogin
+	err := c.ShouldBindJSON(&Credentials)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid input",
@@ -64,17 +95,35 @@ func (h *AuthHandler) GetUserHandler(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
-
-	user, err := h.service.GetUserService(ctx, userIDint)
+	token, err := h.service.LoginService(ctx, Credentials)
 	if err != nil {
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "email already exists") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "email already exists",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "invalid email or password") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "invalid email or password",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"user": user,
+		"token": token,
 	})
 
 }

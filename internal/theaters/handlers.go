@@ -123,9 +123,25 @@ func (h *TheaterHandler) GetSeatsHandler(c *gin.Context) {
 
 func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized user",
+		})
+		return
+	}
+
+	userIDInt, ok := userID.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "invalid user id",
+		})
+		return
+	}
 	// dive means: Go inside the slice/array and validate each item.
+
 	type Uinput struct {
-		UserId int   `json:"user_id" binding:"required,gt=0"`
+		UserId int   `json:"-"`
 		ShowId int   `json:"show_id" binding:"required,gt=0"`
 		Seats  []int `json:"seats" binding:"required,min=1,unique,dive,gt=0"`
 	}
@@ -145,12 +161,15 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 			}
 
 		}
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 
 	}
+
+	userInput.UserId = userIDInt
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
@@ -205,6 +224,23 @@ func (h *TheaterHandler) BookSeatHandler(c *gin.Context) {
 }
 
 func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
+
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized user",
+		})
+		return
+	}
+
+	userIDint, ok := userID.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "invalid user id",
+		})
+		return
+	}
+
 	BookingId := c.Param("id")
 	BooingIdInt, err := strconv.Atoi(BookingId)
 	if err != nil || BooingIdInt <= 0 {
@@ -215,7 +251,7 @@ func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
 
-	BookingDetails, err := h.service.GetBookingByBookingsIdService(ctx, BooingIdInt)
+	BookingDetails, err := h.service.GetBookingByBookingsIdService(ctx, BooingIdInt, userIDint)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "booking not found") {
@@ -231,8 +267,14 @@ func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
 			return
 		}
 
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": " internal server error ",
+			"error": err.Error(),
 		})
 		return
 
@@ -246,14 +288,14 @@ func (h *TheaterHandler) GetBookingDetailsFromId(c *gin.Context) {
 
 func (h *TheaterHandler) UserBookingHistory(c *gin.Context) {
 
-	userID := c.Param("id")
-	userIDint, err := strconv.Atoi(userID)
-	if err != nil || userIDint <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid user id",
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized user",
 		})
 		return
 	}
+	userIDint, ok := userID.(int)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
@@ -288,6 +330,16 @@ func (h *TheaterHandler) UserBookingHistory(c *gin.Context) {
 }
 
 func (h *TheaterHandler) BookingCancelation(c *gin.Context) {
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized user",
+		})
+		return
+	}
+
+	userIDint, ok := userID.(int)
+
 	BookingId := c.Param("id")
 	BoookingIDint, err := strconv.Atoi(BookingId)
 	if err != nil || BoookingIDint <= 0 {
@@ -298,7 +350,7 @@ func (h *TheaterHandler) BookingCancelation(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second*5)
 	defer cancel()
-	cancelledBooking, err := h.service.BookingCancelService(ctx, BoookingIDint)
+	cancelledBooking, err := h.service.BookingCancelService(ctx, BoookingIDint, userIDint)
 	if err != nil {
 
 		if strings.Contains(err.Error(), "booking not found") {

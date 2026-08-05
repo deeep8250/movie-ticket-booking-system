@@ -359,6 +359,12 @@ func (h *TheaterHandler) BookingCancelation(c *gin.Context) {
 			})
 			return
 		}
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),

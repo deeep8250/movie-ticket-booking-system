@@ -420,7 +420,7 @@ func (r *TheaterRepository) UserBookingHistoryRepo(c context.Context, userID int
 func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, userID int) (*models.Bookings, error) {
 
 	//check if the user is exists or not
-	q0 := `select count(*) from bookings where user_id=$1`
+	q0 := `select count(*) from users where id=$1`
 	var userCount int
 	err := r.db.GetContext(c, &userCount, q0, userID)
 	if err != nil {
@@ -430,15 +430,25 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, user
 		return nil, errors.New("user not found")
 	}
 
+	var bookingCount int
+	qu := `select count(*) from bookings where user_id=$1 and id=$2`
+	err = r.db.GetContext(c, &bookingCount, qu, userID, BookingID)
+	if err != nil {
+		return nil, err
+	}
+	if bookingCount == 0 {
+		return nil, errors.New("booking not found")
+	}
+
 	type BookingAndStatusCheck struct {
 		Id     int    `db:"id"`
 		Status string `db:"status"`
 	}
 	var BASC BookingAndStatusCheck
 
-	query1 := `select id,status from bookings where id=$1`
+	query1 := `select id,status from bookings where id=$1 and user_id=$2`
 
-	err = r.db.GetContext(c, &BASC, query1, BookingID)
+	err = r.db.GetContext(c, &BASC, query1, BookingID, userID)
 	if err != nil {
 		return nil, err
 	}

@@ -444,6 +444,7 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, user
 		Id     int    `db:"id"`
 		Status string `db:"status"`
 	}
+
 	var BASC BookingAndStatusCheck
 
 	query1 := `select id,status from bookings where id=$1 and user_id=$2`

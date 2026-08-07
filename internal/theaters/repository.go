@@ -521,3 +521,5 @@ func (r *TheaterRepository) GetShowsByMovieIDRepo(c context.Context, MovieID int
 	}
 	return AvlShows, nil
 }
+
+//

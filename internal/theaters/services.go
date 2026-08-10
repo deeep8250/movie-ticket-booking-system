@@ -241,3 +241,18 @@ func (s *TheaterService) GetShowsByMovieIDService(c context.Context, MovieID int
 	return shows, nil
 
 }
+
+func (s *TheaterService) SeatLockService(c context.Context, userID int, showID int, seats []int) error {
+	err := s.repo.SeatLockRepo(c, userID, showID, seats)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (s *TheaterService) SeatUnLockService(c context.Context, userID int, showID int, seatIDs []int) error {
+	err := s.repo.SeatUnLockRepo(c, userID, showID, seatIDs)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -6,20 +6,25 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
+	"time"
 
 	"github.com/deeep8250/movie-ticket-booking-system/internal/config"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/models"
+	"github.com/go-redis/redis/v8"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
 type TheaterRepository struct {
-	db *sqlx.DB
+	db    *sqlx.DB
+	redis *redis.Client
 }
 
 func NewTheaterRepo() *TheaterRepository {
 	return &TheaterRepository{
-		db: config.DBClients.PostgresClient,
+		db:    config.DBClients.PostgresClient,
+		redis: config.DBClients.RedisClient,
 	}
 }
 
@@ -163,6 +168,23 @@ ORDER BY s.id;`
 
 func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seats []int) (*models.SeatBooking, error) {
 
+	for _, seatID := range seats {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
+
+		result, err := r.redis.Get(c, key).Result()
+		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				return nil, errors.New("seat lock not found")
+			}
+			return nil, err
+		}
+
+		if result != strconv.Itoa(userID) {
+			return nil, errors.New("seat locked by another user")
+		}
+
+	}
+
 	tx, err := r.db.BeginTxx(c, nil)
 	if err != nil {
 		return nil, err
@@ -287,7 +309,15 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 		return nil, err
 	}
 
-	return &bookingData, err
+	for _, seatID := range seats {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
+
+		err := r.redis.Del(c, key).Err()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &bookingData, nil
 
 }
 
@@ -522,4 +552,27 @@ func (r *TheaterRepository) GetShowsByMovieIDRepo(c context.Context, MovieID int
 	return AvlShows, nil
 }
 
-//
+func (r *TheaterRepository) SeatLockRepo(c context.Context, userID int, showID int, seatIDs []int) error {
+
+	for _, seatID := range seatIDs {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
+
+		ok, err := r.redis.SetNX(c, key, strconv.Itoa(userID), 5*time.Minute).Result()
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			lockOwner, err := r.redis.Get(c, key).Result()
+			if err != nil {
+				return err
+			}
+
+			if lockOwner == strconv.Itoa(userID) {
+				return errors.New("seat already locked by you")
+			}
+			return errors.New("seat already locked by another user")
+		}
+	}
+	return nil
+}

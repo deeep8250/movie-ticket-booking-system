@@ -17,4 +17,6 @@ type TheaterRepoInterface interface {
 	GetMoviesRepo(c context.Context) ([]models.GetMovies, error)
 	GetMovieByIDRepo(c context.Context, id int) (*models.GetMovies, error)
 	GetShowsByMovieIDRepo(c context.Context, MovieID int) ([]models.Shows, error)
+
+	SeatLockRepo(c context.Context, userID int, showID int, seats []int) error
 }

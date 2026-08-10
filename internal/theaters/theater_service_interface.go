@@ -17,4 +17,6 @@ type TheaterServiceInterface interface {
 	GetMoviesService(c context.Context) ([]dto.GetMovies, error)
 	GetMovieByIDService(c context.Context, id int) (*dto.GetMovies, error)
 	GetShowsByMovieIDService(c context.Context, MovieID int) ([]dto.Shows, error)
+	SeatLockService(c context.Context, userID int, showID int, seats []int) error
+	SeatUnLockService(c context.Context, userID int, showID int, seatIDs []int) error
 }

@@ -168,23 +168,6 @@ ORDER BY s.id;`
 
 func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seats []int) (*models.SeatBooking, error) {
 
-	for _, seatID := range seats {
-		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
-
-		result, err := r.redis.Get(c, key).Result()
-		if err != nil {
-			if errors.Is(err, redis.Nil) {
-				return nil, errors.New("seat lock not found")
-			}
-			return nil, err
-		}
-
-		if result != strconv.Itoa(userID) {
-			return nil, errors.New("seat locked by another user")
-		}
-
-	}
-
 	tx, err := r.db.BeginTxx(c, nil)
 	if err != nil {
 		return nil, err
@@ -246,6 +229,24 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 
 	if len(bookedSeatIds) > 0 {
 		return nil, fmt.Errorf("seats already booked: %v", bookedSeatIds)
+	}
+
+	// checking if the user locked the selected seats or not
+	for _, seatID := range seats {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
+
+		result, err := r.redis.Get(c, key).Result()
+		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				return nil, errors.New("seat lock not found")
+			}
+			return nil, err
+		}
+
+		if result != strconv.Itoa(userID) {
+			return nil, errors.New("seat locked by another user")
+		}
+
 	}
 
 	// 3. Get show price
@@ -583,7 +584,7 @@ func (r *TheaterRepository) SeatUnLockRepo(c context.Context, userID int, showID
 
 		result, err := r.redis.Get(c, key).Result()
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, redis.Nil) {
 				return errors.New("seat is already unlocked")
 			}
 			return err

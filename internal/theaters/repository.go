@@ -576,3 +576,26 @@ func (r *TheaterRepository) SeatLockRepo(c context.Context, userID int, showID i
 	}
 	return nil
 }
+
+func (r *TheaterRepository) SeatUnLockRepo(c context.Context, userID int, showID int, seatIDs []int) error {
+	for _, seatID := range seatIDs {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
+
+		result, err := r.redis.Get(c, key).Result()
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return errors.New("seat is already unlocked")
+			}
+			return err
+		}
+		if result != strconv.Itoa(userID) {
+			return errors.New("seat is locked by another user")
+		}
+
+		if err := r.redis.Del(c, key).Err(); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}

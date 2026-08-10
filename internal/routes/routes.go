@@ -42,6 +42,9 @@ func Routes(r *gin.Engine) {
 		pv.GET("/users/me/bookings", theaterHandler.UserBookingHistory)
 		pv.PATCH("/bookings/:id/cancel", theaterHandler.BookingCancelation)
 		pv.GET("/user", authHandler.GetUserHandler)
+		pv.POST("/shows/:id/seats/lock", theaterHandler.SeatLockHandler)
+		pv.POST("/shows/:id/seats/unlock", theaterHandler.SeatUnLockHandler)
+
 	}
 
 }

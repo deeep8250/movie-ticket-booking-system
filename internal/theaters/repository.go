@@ -151,6 +151,22 @@ ORDER BY s.id;`
 	if err != nil {
 		return nil, err
 	}
+
+	for i, seat := range Seats {
+		if seat.Status == "booked" || seat.Status == "disable" {
+			continue
+		}
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showsId, seat.SeatId)
+
+		exists, err := r.redis.Exists(c, key).Result()
+		if err != nil {
+			return nil, err
+		}
+		if exists > 0 {
+			Seats[i].Status = "locked"
+		}
+	}
+
 	// showId,movie_name,hall_name
 	query2 := `select s.id as show_id,m.title as movie_name,h.hall_name from halls as h
 	            join shows as s on h.id=s.hall_id

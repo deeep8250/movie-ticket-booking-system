@@ -47,8 +47,9 @@ func TestHealthRoute(t *testing.T) {
 
 }
 
-func TestSignupFlow(t *testing.T) {
-	router := setupTestRouter()
+func createSignupLoginFlow(t *testing.T, router *gin.Engine) string {
+	t.Helper()
+
 	unique := time.Now().UnixNano()
 
 	email := fmt.Sprintf("testuser_%d@gmail.com", unique)
@@ -64,12 +65,12 @@ func TestSignupFlow(t *testing.T) {
 
 	bodyBytes, err := json.Marshal(signupBody)
 	if err != nil {
-		t.Errorf("failed to marshal signUp body %v ", err)
+		t.Fatalf("failed to marshal signUp body %v ", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, "/public/signup", bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		t.Errorf("failed to create sign up request %v ", err)
+		t.Fatalf("failed to create sign up request %v ", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -79,5 +80,39 @@ func TestSignupFlow(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected signup status %d got %d, bod: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
+
+	loginBody := map[string]any{
+		"email":    email,
+		"password": password,
+	}
+
+	loginBodyBytes, err := json.Marshal(loginBody)
+	if err != nil {
+		t.Fatalf("failed to marshal the login body: %v", err)
+	}
+
+	reqLogin, err := http.NewRequest(http.MethodPost, "/public/login", bytes.NewBuffer(loginBodyBytes))
+	if err != nil {
+		t.Fatalf("failed to create login request %v", err)
+	}
+
+	reqLogin.Header.Set("Content-Type", "application/json")
+	LoginRecorder := httptest.NewRecorder()
+	router.ServeHTTP(LoginRecorder, reqLogin)
+	if LoginRecorder.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d", http.StatusOK, LoginRecorder.Code)
+	}
+
+	var LoginResponse map[string]any
+
+	err = json.Unmarshal(LoginRecorder.Body.Bytes(), &LoginResponse)
+	if err != nil {
+		t.Fatalf("unable to unmarshal the response %v ", err)
+	}
+	token, ok := LoginResponse["token"].(string)
+	if !ok || token == "" {
+		t.Fatalf("expected token in login response ,  got %s ", LoginRecorder.Body.String())
+	}
+	return token
 
 }

@@ -100,7 +100,7 @@ func createSignupLoginFlow(t *testing.T, router *gin.Engine) string {
 	LoginRecorder := httptest.NewRecorder()
 	router.ServeHTTP(LoginRecorder, reqLogin)
 	if LoginRecorder.Code != http.StatusOK {
-		t.Fatalf("expected %d got %d", http.StatusOK, LoginRecorder.Code)
+		t.Fatalf("expected login code %d got %d", http.StatusOK, LoginRecorder.Code)
 	}
 
 	var LoginResponse map[string]any

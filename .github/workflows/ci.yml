@@ -49,7 +49,9 @@ jobs:
         run: go vet ./...
       - name: Install migrate
         run: |
-           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.3/migrate.linux-amd64.tar.gz | tar xvz sudo mv migrate /usr/local/bin/migrate    
+           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.3/migrate.linux-amd64.tar.gz | tar xvz
+           sudo mv migrate /usr/local/bin/migrate
+           migrate -version    
       - name : Run migrations
         run:  migrate -path migrations -database "postgres://postgres:postgres@127.0.0.1:5432/movie_booking?sslmode=disable" up
       - name: Run tests

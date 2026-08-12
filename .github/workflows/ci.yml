@@ -11,6 +11,24 @@ permissions:
 
 jobs:
   build-and-test:
+    services: 
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: movie_booking
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d movie_booking"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5  
+      redis:
+        image: redis:-alpine
+        ports:
+          - 6379:6379  
     runs-on: ubuntu-latest
     steps:
       - name: Get code from github
@@ -29,7 +47,22 @@ jobs:
         run: go build ./...
       - name: go vet
         run: go vet ./...
+      - name: Install migrate
+        run: |
+           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.3/migrate.linux-amd64.tar.gz | tar xvz sudo mv migrate /usr/local/bin/migrate    
+      - name : Run migrations
+        run:  migrate -path migrations -database "postgres://postgres:postgres@127.0.0.1:5432/movie_booking?sslmode=disable" up
       - name: Run tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: movie_booking
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ""
+          JWT_SECRET: its-secret-bro
         run: go test ./...   
       - name: build docker image
         run: docker build -t ghcr.io/deeep8250/movie-ticket-booking-system:latest .

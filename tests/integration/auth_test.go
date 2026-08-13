@@ -18,7 +18,7 @@ func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
 	db.DBinit()
-	// db.RedisInit()
+	db.RedisInit()
 	r := gin.Default()
 	routes.Routes(r)
 	return r
@@ -138,16 +138,72 @@ func TestPrivateRouteWithOutToken(t *testing.T) {
 func TestPrivateRouteWithToken(t *testing.T) {
 	route := setupTestRouter()
 	token := createSignupLoginFlow(t, route)
-	req, err := http.NewRequest(http.MethodGet, "private/user", nil)
+	req, err := http.NewRequest(http.MethodGet, "/private/user", nil)
 	if err != nil {
-		t.Errorf("unable to create the request %v", err)
+		t.Fatalf("unable to create the request %v", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	route.ServeHTTP(w, req)
 
-	if w.Code == http.StatusUnauthorized {
-		t.Errorf("expected %v got %v body %s", http.StatusOK, w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected %v got %v body %s", http.StatusOK, w.Code, w.Body.String())
 	}
+}
+
+func TestSeatLockFlow(t *testing.T) {
+	router := setupTestRouter()
+	token := createSignupLoginFlow(t, router)
+
+	lockBody := map[string]any{
+		"seats": []int{5},
+	}
+	lockBodyBytes, err := json.Marshal(lockBody)
+	if err != nil {
+		t.Errorf("unable to marshal the request input %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/lock", bytes.NewBuffer(lockBodyBytes))
+	if err != nil {
+		t.Fatalf("unable to create the request  %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+}
+
+func TestSeatUnlockFlow(t *testing.T) {
+	router := setupTestRouter()
+	token := createSignupLoginFlow(t, router)
+
+	lockBody := map[string]any{
+		"seats": []int{6},
+	}
+
+	lockBodyBytes, err := json.Marshal(lockBody)
+	if err != nil {
+		t.Fatalf("unable to marshal the request input %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/lock", bytes.NewBuffer(lockBodyBytes))
+	if err != nil {
+		t.Fatalf("unable to create the seat book  request in unlock test , %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
 }

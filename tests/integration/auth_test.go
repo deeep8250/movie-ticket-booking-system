@@ -47,6 +47,7 @@ func TestHealthRoute(t *testing.T) {
 
 }
 
+// helper function of signUp and login
 func createSignupLoginFlow(t *testing.T, router *gin.Engine) string {
 	t.Helper()
 
@@ -115,4 +116,38 @@ func createSignupLoginFlow(t *testing.T, router *gin.Engine) string {
 	}
 	return token
 
+}
+
+func TestPrivateRouteWithOutToken(t *testing.T) {
+
+	route := setupTestRouter()
+	req, err := http.NewRequest(http.MethodGet, "/private/user", nil)
+	if err != nil {
+		t.Fatalf("failed to create request %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	route.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected %d got %d body %s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+
+}
+
+func TestPrivateRouteWithToken(t *testing.T) {
+	route := setupTestRouter()
+	token := createSignupLoginFlow(t, route)
+	req, err := http.NewRequest(http.MethodGet, "private/user", nil)
+	if err != nil {
+		t.Errorf("unable to create the request %v", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	route.ServeHTTP(w, req)
+
+	if w.Code == http.StatusUnauthorized {
+		t.Errorf("expected %v got %v body %s", http.StatusOK, w.Code, w.Body.String())
+	}
 }

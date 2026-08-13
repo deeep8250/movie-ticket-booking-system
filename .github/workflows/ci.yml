@@ -65,7 +65,7 @@ jobs:
           REDIS_PORT: 6379
           REDIS_PASSWORD: ""
           JWT_SECRET: its-secret-bro
-        run: go test ./...   
+        run: go test ./... -v count=1
       - name: build docker image
         run: docker build -t ghcr.io/deeep8250/movie-ticket-booking-system:latest .
       - name: login to ghcr

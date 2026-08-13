@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/deeep8250/movie-ticket-booking-system/internal/config"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/db"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/routes"
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,23 @@ func setupTestRouter() *gin.Engine {
 	r := gin.Default()
 	routes.Routes(r)
 	return r
+}
+
+func cleanupSeatLock(t *testing.T, showID int, seatIDs map[string]any) {
+	t.Helper()
+	seats, ok := seatIDs["seats"].([]int)
+	if !ok {
+		t.Fatalf("unable to extract seats in cleanup")
+	}
+
+	for _, seat := range seats {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seat)
+		err := config.DBClients.RedisClient.Del(context.Background(), key).Err()
+		if err != nil {
+			t.Fatalf("unable to delete the key  %v ", err)
+		}
+	}
+
 }
 
 func TestRouter(t *testing.T) {
@@ -54,7 +73,7 @@ func createSignupLoginFlow(t *testing.T, router *gin.Engine) string {
 	unique := time.Now().UnixNano()
 
 	email := fmt.Sprintf("testuser_%d@gmail.com", unique)
-	mobile := fmt.Sprintf("9%d", unique%1000000000)
+	mobile := fmt.Sprintf("9%09d", unique%1000000000)
 	password := "password123"
 
 	signupBody := map[string]any{
@@ -174,6 +193,10 @@ func TestSeatLockFlow(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
+
+	//unlocking seats
+	cleanupSeatLock(t, 1, lockBody)
+
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected %d got %d body %s", http.StatusOK, w.Code, w.Body.String())
 	}
@@ -185,7 +208,7 @@ func TestSeatUnlockFlow(t *testing.T) {
 	token := createSignupLoginFlow(t, router)
 
 	lockBody := map[string]any{
-		"seats": []int{6},
+		"seats": []int{5},
 	}
 
 	lockBodyBytes, err := json.Marshal(lockBody)
@@ -193,17 +216,29 @@ func TestSeatUnlockFlow(t *testing.T) {
 		t.Fatalf("unable to marshal the request input %v", err)
 	}
 
+	//locking seats
 	req, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/lock", bytes.NewBuffer(lockBodyBytes))
 	if err != nil {
-		t.Fatalf("unable to create the seat book  request in unlock test , %v", err)
+		t.Fatalf("unable to lock the seat :  , %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected %d got %d body %s", http.StatusOK, w.Code, w.Body.String())
-	}
 
+	//unlocking seats
+	req2, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/unlock", bytes.NewBuffer(lockBodyBytes))
+	if err != nil {
+		t.Fatalf("unable to create the seat book  request in unlock test , %v", err)
+	}
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+token)
+
+	w2 := httptest.NewRecorder()
+	router.ServeHTTP(w2, req2)
+
+	if w2.Code == http.StatusConflict {
+		t.Errorf("expected %v got %v body: %s ", http.StatusOK, w2.Code, w2.Body.String())
+	}
 }

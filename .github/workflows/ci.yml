@@ -54,6 +54,10 @@ jobs:
            migrate -version    
       - name : Run migrations
         run:  migrate -path migrations -database "postgres://postgres:postgres@127.0.0.1:5432/movie_booking?sslmode=disable" up
+      - name: Seed integration test data
+        env:
+           PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d movie_booking -f tests/integration/seed.sql  
       - name: Run tests
         env:
           DB_HOST: 127.0.0.1

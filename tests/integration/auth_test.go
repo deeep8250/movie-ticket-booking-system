@@ -16,6 +16,130 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func createTestShowWithSeats(t *testing.T, seatCount int) (int, []int) {
+	t.Helper()
+
+	ctx := context.Background()
+	unique := time.Now().UnixNano()
+
+	var theaterID int
+	err := config.DBClients.PostgresClient.GetContext(ctx, &theaterID, `
+		INSERT INTO theaters (
+			theater_name,
+			theater_owner,
+			theater_email,
+			city,
+			pin_code,
+			state,
+			district
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id
+	`,
+		fmt.Sprintf("Test Theater %d", unique),
+		"Test Owner",
+		fmt.Sprintf("test-theater-%d@example.com", unique),
+		"Test City",
+		"123456",
+		"Test State",
+		"Test District",
+	)
+	if err != nil {
+		t.Fatalf("failed to create test theater: %v", err)
+	}
+
+	var hallID int
+	err = config.DBClients.PostgresClient.GetContext(ctx, &hallID, `
+		INSERT INTO halls (
+			theater_id,
+			hall_name
+		)
+		VALUES ($1, $2)
+		RETURNING id
+	`,
+		theaterID,
+		fmt.Sprintf("Test Hall %d", unique),
+	)
+	if err != nil {
+		t.Fatalf("failed to create test hall: %v", err)
+	}
+
+	var movieID int
+	err = config.DBClients.PostgresClient.GetContext(ctx, &movieID, `
+		INSERT INTO movies (
+			title,
+			description,
+			language,
+			duration_min,
+			release_date
+		)
+		VALUES ($1, $2, $3, $4, CURRENT_DATE)
+		RETURNING id
+	`,
+		fmt.Sprintf("Test Movie %d", unique),
+		"Integration test movie",
+		"English",
+		120,
+	)
+	if err != nil {
+		t.Fatalf("failed to create test movie: %v", err)
+	}
+
+	var showID int
+	err = config.DBClients.PostgresClient.GetContext(ctx, &showID, `
+		INSERT INTO shows (
+			movie_id,
+			hall_id,
+			starts_at,
+			ends_at,
+			base_price,
+			status
+		)
+		VALUES (
+			$1,
+			$2,
+			NOW() + INTERVAL '1 day',
+			NOW() + INTERVAL '1 day 2 hours',
+			450,
+			'scheduled'
+		)
+		RETURNING id
+	`,
+		movieID,
+		hallID,
+	)
+	if err != nil {
+		t.Fatalf("failed to create test show: %v", err)
+	}
+
+	seatIDs := make([]int, 0, seatCount)
+
+	for i := 1; i <= seatCount; i++ {
+		var seatID int
+
+		err = config.DBClients.PostgresClient.GetContext(ctx, &seatID, `
+			INSERT INTO seats (
+				hall_id,
+				seat_number,
+				seat_type,
+				is_active
+			)
+			VALUES ($1, $2, $3, true)
+			RETURNING id
+		`,
+			hallID,
+			fmt.Sprintf("A%d", i),
+			"regular",
+		)
+		if err != nil {
+			t.Fatalf("failed to create test seat: %v", err)
+		}
+
+		seatIDs = append(seatIDs, seatID)
+	}
+
+	return showID, seatIDs
+}
 func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
@@ -256,8 +380,7 @@ func TestPrivateRouteWithToken(t *testing.T) {
 func TestSeatLockFlow(t *testing.T) {
 	router := setupTestRouter()
 	token := createSignupLoginFlow(t, router)
-	showID := 2
-	SeatIDs := []int{20}
+	showID, SeatIDs := createTestShowWithSeats(t, 2)
 	SeatIDsMap := map[string]any{
 		"seats": SeatIDs,
 	}
@@ -276,8 +399,8 @@ func TestSeatLockFlow(t *testing.T) {
 func TestSeatUnlockFlow(t *testing.T) {
 	router := setupTestRouter()
 	token := createSignupLoginFlow(t, router)
-	showID := 2
-	SeatIDs := []int{20}
+	showID, SeatIDs := createTestShowWithSeats(t, 2)
+
 	SeatIDmap := map[string]any{
 		"seats": SeatIDs,
 	}
@@ -299,15 +422,14 @@ func TestBookingFlow(t *testing.T) {
 
 	route := setupTestRouter()
 	token := createSignupLoginFlow(t, route)
-	showID := 2
-	seatIDs := []int{20}
+	showID, seatIDs := createTestShowWithSeats(t, 2)
+
 	Input := map[string]any{
 
 		"seats": seatIDs,
 	}
 	//releasing seats
-	cleanupSeatLock(t, 2, seatIDs)
-	// locking the seat
+	cleanupSeatLock(t, showID, seatIDs) // locking the seat
 	w := lockSeatHelper(t, token, showID, Input, route)
 
 	if w.Code != http.StatusOK {
@@ -316,7 +438,7 @@ func TestBookingFlow(t *testing.T) {
 
 	// seat booking
 	Input2 := map[string]any{
-		"show_id": 2,
+		"show_id": showID,
 		"seats":   seatIDs,
 	}
 
@@ -335,8 +457,8 @@ func TestCancelBookingFlow(t *testing.T) {
 
 	route := setupTestRouter()
 	token := createSignupLoginFlow(t, route)
-	showID := 2
-	seatIDs := []int{20}
+	showID, seatIDs := createTestShowWithSeats(t, 2)
+
 	SeatLockInput := map[string]any{
 
 		"seats": seatIDs,
@@ -349,7 +471,7 @@ func TestCancelBookingFlow(t *testing.T) {
 	}
 
 	SeatBookingInput := map[string]any{
-		"show_id": 2,
+		"show_id": showID,
 		"seats":   seatIDs,
 	}
 

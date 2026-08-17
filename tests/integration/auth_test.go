@@ -25,24 +25,6 @@ func setupTestRouter() *gin.Engine {
 	routes.Routes(r)
 	return r
 }
-
-func cleanupSeatLock(t *testing.T, showID int, seatIDs map[string]any) {
-	t.Helper()
-	seats, ok := seatIDs["seats"].([]int)
-	if !ok {
-		t.Fatalf("unable to extract seats in cleanup")
-	}
-
-	for _, seat := range seats {
-		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seat)
-		err := config.DBClients.RedisClient.Del(context.Background(), key).Err()
-		if err != nil {
-			t.Fatalf("unable to delete the key  %v ", err)
-		}
-	}
-
-}
-
 func TestRouter(t *testing.T) {
 	router := setupTestRouter()
 	if router == nil {
@@ -50,18 +32,15 @@ func TestRouter(t *testing.T) {
 	}
 }
 
-func TestHealthRoute(t *testing.T) {
-	router := setupTestRouter()
+func cleanupSeatLock(t *testing.T, showID int, seatIDs []int) {
+	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "/health", nil)
-	if err != nil {
-		t.Fatalf("failed to create request %v", err)
-	}
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected %d, got %d, body %s", http.StatusOK, w.Code, w.Body.String())
+	for _, seat := range seatIDs {
+		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seat)
+		err := config.DBClients.RedisClient.Del(context.Background(), key).Err()
+		if err != nil {
+			t.Fatalf("unable to delete the key  %v ", err)
+		}
 	}
 
 }
@@ -137,6 +116,109 @@ func createSignupLoginFlow(t *testing.T, router *gin.Engine) string {
 
 }
 
+func lockSeatHelper(t *testing.T, token string, showID int, SeatIDs map[string]any, router *gin.Engine) httptest.ResponseRecorder {
+	SeatIDsMapBytes, err := json.Marshal(SeatIDs)
+	if err != nil {
+		t.Errorf("unable to marshal the request input %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/private/shows/%d/seats/lock", showID), bytes.NewBuffer(SeatIDsMapBytes))
+	if err != nil {
+		t.Fatalf("unable to create the request  %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body %s", http.StatusOK, w.Code, w.Body.String())
+	}
+	return *w
+}
+
+func unlockSeatHelper(t *testing.T, token string, showID int, SeatIDs map[string]any, router *gin.Engine) httptest.ResponseRecorder {
+	SeatIDBodyBytes, err := json.Marshal(SeatIDs)
+	if err != nil {
+		t.Errorf("unable to marshal the request input %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/private/shows/%d/seats/unlock", showID), bytes.NewBuffer(SeatIDBodyBytes))
+	if err != nil {
+		t.Fatalf("unable to create the seat book  request in unlock test , %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return *w
+}
+
+func seatBookingHelper(t *testing.T, token string, inputs map[string]any, router *gin.Engine) (int, httptest.ResponseRecorder) {
+	bodyMarshal2, err := json.Marshal(inputs)
+	if err != nil {
+		t.Fatalf("unable to marshal request %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, "/private/bookings", bytes.NewReader(bodyMarshal2))
+	if err != nil {
+		t.Fatalf("unable to create request %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// read booking id from response
+	var bookingResponse map[string]any
+	err = json.Unmarshal(w.Body.Bytes(), &bookingResponse)
+	if err != nil {
+		t.Fatalf("Unable  to unmarshal the response %v ", err)
+	}
+	bookingInfo, ok := bookingResponse["booking_info"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected booking_id in response, got body: %s", w.Body.String())
+
+	}
+	bookingIDFloat, ok := bookingInfo["booking_id"].(float64)
+	if !ok {
+		t.Fatalf("unable to get the booking ID from bookingInfo ")
+	}
+
+	return int(bookingIDFloat), *w
+}
+
+func seatCancelHelper(t *testing.T, token string, BookingID int, router *gin.Engine) httptest.ResponseRecorder {
+	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("/private/bookings/%d/cancel", BookingID), nil)
+	if err != nil {
+		t.Fatalf("unable to create request  %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return *w
+}
+func TestHealthRoute(t *testing.T) {
+	router := setupTestRouter()
+
+	req, err := http.NewRequest(http.MethodGet, "/health", nil)
+	if err != nil {
+		t.Fatalf("failed to create request %v", err)
+	}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected %d, got %d, body %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+}
+
 func TestPrivateRouteWithOutToken(t *testing.T) {
 
 	route := setupTestRouter()
@@ -174,28 +256,16 @@ func TestPrivateRouteWithToken(t *testing.T) {
 func TestSeatLockFlow(t *testing.T) {
 	router := setupTestRouter()
 	token := createSignupLoginFlow(t, router)
-
-	lockBody := map[string]any{
-		"seats": []int{5},
-	}
-	lockBodyBytes, err := json.Marshal(lockBody)
-	if err != nil {
-		t.Errorf("unable to marshal the request input %v", err)
+	showID := 2
+	SeatIDs := []int{20}
+	SeatIDsMap := map[string]any{
+		"seats": SeatIDs,
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/lock", bytes.NewBuffer(lockBodyBytes))
-	if err != nil {
-		t.Fatalf("unable to create the request  %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	w := lockSeatHelper(t, token, showID, SeatIDsMap, router)
 
 	//unlocking seats
-	cleanupSeatLock(t, 1, lockBody)
+	cleanupSeatLock(t, showID, SeatIDs)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected %d got %d body %s", http.StatusOK, w.Code, w.Body.String())
@@ -206,39 +276,94 @@ func TestSeatLockFlow(t *testing.T) {
 func TestSeatUnlockFlow(t *testing.T) {
 	router := setupTestRouter()
 	token := createSignupLoginFlow(t, router)
-
-	lockBody := map[string]any{
-		"seats": []int{5},
-	}
-
-	lockBodyBytes, err := json.Marshal(lockBody)
-	if err != nil {
-		t.Fatalf("unable to marshal the request input %v", err)
+	showID := 2
+	SeatIDs := []int{20}
+	SeatIDmap := map[string]any{
+		"seats": SeatIDs,
 	}
 
 	//locking seats
-	req, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/lock", bytes.NewBuffer(lockBodyBytes))
-	if err != nil {
-		t.Fatalf("unable to lock the seat :  , %v", err)
+	w := lockSeatHelper(t, token, showID, SeatIDmap, router)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected %d  got %d  body : %s ", http.StatusOK, w.Code, w.Body.String())
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
 
 	//unlocking seats
-	req2, err := http.NewRequest(http.MethodPost, "/private/shows/1/seats/unlock", bytes.NewBuffer(lockBodyBytes))
-	if err != nil {
-		t.Fatalf("unable to create the seat book  request in unlock test , %v", err)
+	w2 := unlockSeatHelper(t, token, showID, SeatIDmap, router)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("Expected %d got %d body: %v", http.StatusOK, w2.Code, w2.Body.String())
 	}
-	req2.Header.Set("Content-Type", "application/json")
-	req2.Header.Set("Authorization", "Bearer "+token)
+}
 
-	w2 := httptest.NewRecorder()
-	router.ServeHTTP(w2, req2)
+func TestBookingFlow(t *testing.T) {
 
-	if w2.Code == http.StatusConflict {
-		t.Errorf("expected %v got %v body: %s ", http.StatusOK, w2.Code, w2.Body.String())
+	route := setupTestRouter()
+	token := createSignupLoginFlow(t, route)
+	showID := 2
+	seatIDs := []int{20}
+	Input := map[string]any{
+
+		"seats": seatIDs,
 	}
+	//releasing seats
+	cleanupSeatLock(t, 2, seatIDs)
+	// locking the seat
+	w := lockSeatHelper(t, token, showID, Input, route)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected %d got %d body  : %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	// seat booking
+	Input2 := map[string]any{
+		"show_id": 2,
+		"seats":   seatIDs,
+	}
+
+	bookingID, w2 := seatBookingHelper(t, token, Input2, route)
+	cancelReq := seatCancelHelper(t, token, int(bookingID), route)
+	if cancelReq.Code != http.StatusOK {
+		t.Fatalf("expected %d got %d body %v", http.StatusOK, cancelReq.Code, cancelReq.Body.String())
+	}
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("Expected %d got %d body  : %s", http.StatusCreated, w2.Code, w2.Body.String())
+	}
+
+}
+
+func TestCancelBookingFlow(t *testing.T) {
+
+	route := setupTestRouter()
+	token := createSignupLoginFlow(t, route)
+	showID := 2
+	seatIDs := []int{20}
+	SeatLockInput := map[string]any{
+
+		"seats": seatIDs,
+	}
+
+	//locking the seat
+	w1 := lockSeatHelper(t, token, showID, SeatLockInput, route)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("w1 Expected  %d got %d body %v", http.StatusOK, w1.Code, w1.Body.String())
+	}
+
+	SeatBookingInput := map[string]any{
+		"show_id": 2,
+		"seats":   seatIDs,
+	}
+
+	//book the seat
+	bookingID, w2 := seatBookingHelper(t, token, SeatBookingInput, route)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("w2 Expected  %d got %d body %v", http.StatusCreated, w2.Code, w2.Body.String())
+	}
+
+	//cancel the booking
+	w3 := seatCancelHelper(t, token, bookingID, route)
+
+	if w3.Code != http.StatusOK {
+		t.Fatalf("w3 Expected  %d got %d body %v", http.StatusOK, w3.Code, w3.Body.String())
+	}
+
 }

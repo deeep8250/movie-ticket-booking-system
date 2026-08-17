@@ -503,12 +503,12 @@ func (h *TheaterHandler) SeatLockHandler(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "selected seats are locked",
+		"status": "selected seats are locked successfully",
 	})
 
 }
@@ -564,7 +564,7 @@ func (h *TheaterHandler) SeatUnLockHandler(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

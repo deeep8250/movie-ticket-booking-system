@@ -142,7 +142,7 @@ LEFT JOIN (
         ON b.id = sb.booking_id
     WHERE b.status IN ('confirmed', 'pending')
 ) AS active_booking
-    ON active_booking.seat_id = s.id
+    ON active_booking.seat_id = s.id	
     AND active_booking.show_id = sh.id
 WHERE sh.id = $1
 ORDER BY s.id;`
@@ -503,7 +503,7 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, user
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errors.New("booking id not found")
 	} else if BASC.Status == "cancelled" {
-		return nil, errors.New("booking is already cancelled")
+		return nil, fmt.Errorf("booking is already cancelled %v", err)
 	}
 
 	q2 := `update bookings 
@@ -571,6 +571,34 @@ func (r *TheaterRepository) GetShowsByMovieIDRepo(c context.Context, MovieID int
 
 func (r *TheaterRepository) SeatLockRepo(c context.Context, userID int, showID int, seatIDs []int) error {
 
+	query := `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where s.id=ANY($1) and sh.id=$2`
+	var seatCount int
+	err := r.db.GetContext(c, &seatCount, query, pq.Array(seatIDs), showID)
+	if err != nil {
+		return err
+	}
+	if seatCount != len(seatIDs) {
+		return errors.New("one or more seat ids do not belong to this show")
+	}
+
+	// checking if the selected seats are already booked or not
+	query2 := `SELECT count(*)    
+               FROM seat_bookings AS sb
+               JOIN bookings AS b
+               ON b.id = sb.booking_id
+               WHERE b.show_id = $1
+               AND sb.seat_id = ANY($2)
+               AND b.status = 'confirmed';`
+
+	// i want to know if the selected seats are booked or not
+	var count int
+	err = r.db.GetContext(c, &count, query2, showID, pq.Array(seatIDs))
+	if err != nil {
+		return err
+	}
+	if count != 0 {
+		return fmt.Errorf("seat already booked by other user %d", count)
+	}
 	for _, seatID := range seatIDs {
 		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
 
@@ -595,6 +623,19 @@ func (r *TheaterRepository) SeatLockRepo(c context.Context, userID int, showID i
 }
 
 func (r *TheaterRepository) SeatUnLockRepo(c context.Context, userID int, showID int, seatIDs []int) error {
+
+	query := `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where s.id=ANY($1) and sh.id=$2`
+	var seatCount int
+	err := r.db.GetContext(c, &seatCount, query, pq.Array(seatIDs), showID)
+	if err != nil {
+		return fmt.Errorf("failed to validate seats for show: %w", err)
+	}
+	if seatCount != len(seatIDs) {
+		return errors.New("one or more seat ids do not belong to this show")
+	}
+
+	//
+
 	for _, seatID := range seatIDs {
 		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
 

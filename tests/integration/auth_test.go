@@ -1,3 +1,5 @@
+// Make integration tests create independent test data
+
 package integration
 
 import (

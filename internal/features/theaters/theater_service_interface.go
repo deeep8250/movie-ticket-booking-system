@@ -1,0 +1,12 @@
+package theaters
+
+import (
+	"context"
+
+	"github.com/deeep8250/movie-ticket-booking-system/internal/dto"
+)
+
+type TheaterServiceInterface interface {
+	//theaters
+	GetTheatersService(c context.Context) ([]dto.Theater, error)
+}

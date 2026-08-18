@@ -1,4 +1,4 @@
-package theaters
+package bookings
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"time"
 
 	"github.com/deeep8250/movie-ticket-booking-system/internal/config"
 	"github.com/deeep8250/movie-ticket-booking-system/internal/models"
@@ -16,173 +15,19 @@ import (
 	"github.com/lib/pq"
 )
 
-type TheaterRepository struct {
+type BookingRepository struct {
 	db    *sqlx.DB
 	redis *redis.Client
 }
 
-func NewTheaterRepo() *TheaterRepository {
-	return &TheaterRepository{
+func NewBookingRepo() *BookingRepository {
+	return &BookingRepository{
 		db:    config.DBClients.PostgresClient,
 		redis: config.DBClients.RedisClient,
 	}
 }
 
-func (r *TheaterRepository) GetTheaters(c context.Context) ([]models.Theater, error) {
-	var theaterList []models.Theater
-	query := `
-		SELECT 
-			t.id,
-			t.theater_name,
-			t.city,
-			t.state,
-			COUNT(h.id) AS number_of_halls
-		FROM theaters t
-		LEFT JOIN halls h ON h.theater_id = t.id
-		GROUP BY t.id, t.theater_name, t.city, t.state
-		ORDER BY t.id;
-	`
-	err := r.db.SelectContext(c, &theaterList, query)
-	if err != nil {
-		return nil, err
-	}
-	return theaterList, nil
-}
-
-func (r *TheaterRepository) GetShowsRepo(c context.Context, TheaterId int) ([]models.TheaterShows, error) {
-
-	// checking theater is existing or not for propper error handing
-	var theaterCounter int
-	q := `select count(*) from theaters where id=$1`
-	err := r.db.GetContext(c, &theaterCounter, q, TheaterId)
-	if err != nil {
-		return nil, err
-	} else if theaterCounter <= 0 {
-		return nil, errors.New("theater not found")
-	}
-
-	query := `select s.id as show_id,t.theater_name as theater_name,h.hall_name as hall_name,
-        m.title as movie_name,m.language,s.starts_at,s.ends_at,s.base_price from theaters as t
-		join halls as h on t.id=h.theater_id
-		join shows as s on s.hall_id=h.id
-		join movies as m on  s.movie_id=m.id
-		where t.id=$1
-		order by (t.id,h.id,m.id,s.id);
-		`
-
-	var shows []models.TheaterShows
-	err = r.db.SelectContext(c, &shows, query, TheaterId)
-	if err != nil {
-		return nil, err
-	}
-
-	return shows, nil
-
-}
-
-func (r *TheaterRepository) GetSeats(c context.Context, showsId int) (*models.SeatsInShows, error) {
-
-	//  checking if the given show id is valid or not
-	var ShowCount int
-	q := `select count(*) from shows where id=$1`
-	err := r.db.GetContext(c, &ShowCount, q, showsId)
-	if err != nil {
-		return nil, err
-	} else if ShowCount <= 0 {
-		return nil, errors.New("show not found")
-	}
-
-	//
-
-	var Seats []models.Seats
-	// query := `SELECT
-	// 	s.id AS seat_id,
-	// 	s.seat_number,
-	// 	s.seat_type,
-	// 	CASE
-	// 		WHEN s.is_active = false THEN 'disabled'
-	// 		WHEN sb.id IS NOT NULL   AND b.status='confirmed' THEN 'booked'
-	// 		WHEN sb.id IS NOT NULL   AND b.status='cancelled' THEN 'available'
-
-	// 		ELSE 'available'
-	// 	END AS status
-
-	// FROM seats AS s
-	// JOIN shows AS sh
-	// 	ON sh.hall_id = s.hall_id
-
-	// LEFT JOIN seat_bookings AS sb
-	//    ON sb.seat_id = s.id
-	// 	AND sb.show_id = sh.id
-
-	// LEFT JOIN bookings as b
-	//     ON b.id=sb.booking_id
-
-	// WHERE sh.id = $1
-	//  ORDER BY s.id;`
-
-	query := `SELECT 
-    s.id AS seat_id,
-    s.seat_number,
-    s.seat_type,
-    CASE
-        WHEN s.is_active = false THEN 'disabled'
-        WHEN active_booking.seat_id IS NOT NULL THEN 'booked'
-        ELSE 'available'
-    END AS status
-FROM seats AS s
-JOIN shows AS sh 
-    ON sh.hall_id = s.hall_id
-LEFT JOIN (
-    SELECT DISTINCT
-        sb.seat_id,
-        sb.show_id
-    FROM seat_bookings AS sb
-    JOIN bookings AS b
-        ON b.id = sb.booking_id
-    WHERE b.status IN ('confirmed', 'pending')
-) AS active_booking
-    ON active_booking.seat_id = s.id	
-    AND active_booking.show_id = sh.id
-WHERE sh.id = $1
-ORDER BY s.id;`
-
-	err = r.db.SelectContext(c, &Seats, query, showsId)
-	if err != nil {
-		return nil, err
-	}
-
-	for i, seat := range Seats {
-		if seat.Status == "booked" || seat.Status == "disable" {
-			continue
-		}
-		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showsId, seat.SeatId)
-
-		exists, err := r.redis.Exists(c, key).Result()
-		if err != nil {
-			return nil, err
-		}
-		if exists > 0 {
-			Seats[i].Status = "locked"
-		}
-	}
-
-	// showId,movie_name,hall_name
-	query2 := `select s.id as show_id,m.title as movie_name,h.hall_name from halls as h
-	            join shows as s on h.id=s.hall_id
-				join movies as m on s.movie_id=m.id where s.id=$1 order by (h.id,s.id,m.id)  `
-
-	var SeatinShows models.SeatsInShows
-	err = r.db.GetContext(c, &SeatinShows, query2, showsId)
-	if err != nil {
-		return nil, err
-	}
-	SeatinShows.SeatsAvailable = Seats
-	return &SeatinShows, nil
-
-}
-
-func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seats []int) (*models.SeatBooking, error) {
+func (r *BookingRepository) BookSeat(c context.Context, userID, showID int, seats []int) (*models.SeatBooking, error) {
 
 	tx, err := r.db.BeginTxx(c, nil)
 	if err != nil {
@@ -337,8 +182,7 @@ func (r *TheaterRepository) BookSeat(c context.Context, userID, showID int, seat
 	return &bookingData, nil
 
 }
-
-func (r *TheaterRepository) GetBookingByBookingsId(c context.Context, bookingID, userID int) (*models.BookingsDetails, error) {
+func (r *BookingRepository) GetBookingByBookingsId(c context.Context, bookingID, userID int) (*models.BookingsDetails, error) {
 
 	q0 := `select count(*) from users where id=$1`
 	var UserCount int
@@ -419,8 +263,7 @@ ORDER BY
 	return &BookingDetails, nil
 
 }
-
-func (r *TheaterRepository) UserBookingHistoryRepo(c context.Context, userID int) (string, []models.BookingHistory, error) {
+func (r *BookingRepository) UserBookingHistoryRepo(c context.Context, userID int) (string, []models.BookingHistory, error) {
 
 	//check if the user is exists or not
 	query1 := `select username from users where id=$1`
@@ -463,8 +306,7 @@ func (r *TheaterRepository) UserBookingHistoryRepo(c context.Context, userID int
 	return UserName, BookingHstry, nil
 
 }
-
-func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, userID int) (*models.Bookings, error) {
+func (r *BookingRepository) BookingCancelRepo(c context.Context, BookingID, userID int) (*models.Bookings, error) {
 
 	//check if the user is exists or not
 	q0 := `select count(*) from users where id=$1`
@@ -527,133 +369,4 @@ func (r *TheaterRepository) BookingCancelRepo(c context.Context, BookingID, user
 	}
 	return &bookingDetails, nil
 
-}
-
-func (r *TheaterRepository) GetMoviesRepo(c context.Context) ([]models.GetMovies, error) {
-	var movies []models.GetMovies
-	query := `select id,title,language,duration_min,release_date from movies`
-	err := r.db.SelectContext(c, &movies, query)
-	if err != nil {
-		return nil, err
-	}
-
-	return movies, err
-}
-func (r *TheaterRepository) GetMovieByIDRepo(c context.Context, id int) (*models.GetMovies, error) {
-
-	var movie models.GetMovies
-
-	query := `select id,title,language,duration_min,release_date from movies where id=$1`
-	err := r.db.GetContext(c, &movie, query, id)
-	if err != nil {
-		return nil, err
-	}
-	return &movie, nil
-}
-
-func (r *TheaterRepository) GetShowsByMovieIDRepo(c context.Context, MovieID int) ([]models.Shows, error) {
-
-	query := `select sh.id AS show_id, t.theater_name,h.hall_name,t.city,sh.starts_at,sh.ends_at,sh.base_price from shows as sh
-	          join halls as h on h.id=sh.hall_id 
-			  join theaters as t on h.theater_id=t.id 
-			  join movies as m on m.id=sh.movie_id 
-			  where m.id=$1
-			  `
-
-	var AvlShows []models.Shows
-	err := r.db.SelectContext(c, &AvlShows, query, MovieID)
-
-	if err != nil {
-		return nil, err
-	}
-	return AvlShows, nil
-}
-
-func (r *TheaterRepository) SeatLockRepo(c context.Context, userID int, showID int, seatIDs []int) error {
-
-	query := `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where s.id=ANY($1) and sh.id=$2`
-	var seatCount int
-	err := r.db.GetContext(c, &seatCount, query, pq.Array(seatIDs), showID)
-	if err != nil {
-		return err
-	}
-	if seatCount != len(seatIDs) {
-		return errors.New("one or more seat ids do not belong to this show")
-	}
-
-	// checking if the selected seats are already booked or not
-	query2 := `SELECT count(*)    
-               FROM seat_bookings AS sb
-               JOIN bookings AS b
-               ON b.id = sb.booking_id
-               WHERE b.show_id = $1
-               AND sb.seat_id = ANY($2)
-               AND b.status = 'confirmed';`
-
-	// i want to know if the selected seats are booked or not
-	var count int
-	err = r.db.GetContext(c, &count, query2, showID, pq.Array(seatIDs))
-	if err != nil {
-		return err
-	}
-	if count != 0 {
-		return fmt.Errorf("seat already booked by other user %d", count)
-	}
-	for _, seatID := range seatIDs {
-		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
-
-		ok, err := r.redis.SetNX(c, key, strconv.Itoa(userID), 5*time.Minute).Result()
-		if err != nil {
-			return err
-		}
-
-		if !ok {
-			lockOwner, err := r.redis.Get(c, key).Result()
-			if err != nil {
-				return err
-			}
-
-			if lockOwner == strconv.Itoa(userID) {
-				return errors.New("seat already locked by you")
-			}
-			return errors.New("seat already locked by another user")
-		}
-	}
-	return nil
-}
-
-func (r *TheaterRepository) SeatUnLockRepo(c context.Context, userID int, showID int, seatIDs []int) error {
-
-	query := `select count(*) from seats as s join shows as sh on sh.hall_id=s.hall_id where s.id=ANY($1) and sh.id=$2`
-	var seatCount int
-	err := r.db.GetContext(c, &seatCount, query, pq.Array(seatIDs), showID)
-	if err != nil {
-		return fmt.Errorf("failed to validate seats for show: %w", err)
-	}
-	if seatCount != len(seatIDs) {
-		return errors.New("one or more seat ids do not belong to this show")
-	}
-
-	//
-
-	for _, seatID := range seatIDs {
-		key := fmt.Sprintf("seat_lock:show:%d:seat:%d", showID, seatID)
-
-		result, err := r.redis.Get(c, key).Result()
-		if err != nil {
-			if errors.Is(err, redis.Nil) {
-				return errors.New("seat is already unlocked")
-			}
-			return err
-		}
-		if result != strconv.Itoa(userID) {
-			return errors.New("seat is locked by another user")
-		}
-
-		if err := r.redis.Del(c, key).Err(); err != nil {
-			return err
-		}
-
-	}
-	return nil
 }

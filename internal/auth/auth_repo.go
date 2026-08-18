@@ -39,6 +39,8 @@ func (r *AuthRepo) CreateUserRepo(c context.Context, userData dto.UsersRequest) 
 	return nil
 
 }
+
+// clean ups
 func (r *AuthRepo) GetUserRepo(c context.Context, userID int) (*models.Users, error) {
 
 	query := `select id,username,email,mobile,created_at,updated_at from users where id=$1`

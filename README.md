@@ -1,207 +1,344 @@
-# Community Event Booking System
+# Movie Ticket Booking System
 
-A backend system where communities create events with limited seats, members request bookings, and the system manages confirmations, waitlists, cancellations, and automatic seat promotion.
+A backend API for a movie ticket booking platform built with Go, Gin, PostgreSQL, Redis, Docker, and GitHub Actions.
 
-## Overview
+The project supports user authentication, movie/show browsing, seat locking, seat booking, booking cancellation, and booking history.
 
-The Community Event Booking System is a production-style backend project built with Go.
+---
 
-Communities can create events with a fixed number of seats. Members can request a seat for an event. Each request is processed asynchronously by a background worker.
+## Features
 
-If a seat is available, the booking is confirmed. If the event is full, the member is added to a waitlist. When a confirmed member cancels, the system automatically promotes the next eligible person from the waitlist.
+- User signup and login
+- JWT-based authentication
+- Public movie, theater, show, and seat APIs
+- Seat availability checking
+- Redis-based temporary seat locking
+- Seat unlocking
+- PostgreSQL transaction-based booking flow
+- Booking cancellation
+- User booking history
+- Booking details by booking ID
+- Dockerized backend
+- Integration tests for core flows
+- GitHub Actions CI/CD pipeline
 
-The project is designed to demonstrate how database transactions, background workers, Redis caching, context handling, graceful shutdown, structured logging, testing, and deployment work together in one backend system.
+---
 
-## Main Flow
+## Tech Stack
 
-```mermaid
-flowchart TD
-    A[Community creates an event] --> B[Member requests a booking]
-    B --> C[Booking job is added to the worker queue]
-    C --> D{Is a seat available?}
-    D -- Yes --> E[Confirm booking]
-    D -- No --> F[Add member to waitlist]
-    E --> G[Member may cancel later]
-    G --> H[Seat becomes available]
-    H --> I[Promote next waitlisted member]
+- Go
+- Gin
+- PostgreSQL
+- Redis
+- sqlx
+- golang-migrate
+- JWT
+- Docker
+- Docker Compose
+- GitHub Actions
+- GitHub Container Registry
+
+---
+
+## Architecture
+
+This project follows a feature-based three-layer architecture.
+
+Each main feature has its own:
+
+```text
+Handler → Service → Repository
 ```
 
-## Core Features
+### Responsibility
 
-- JWT-based authentication
-- Community management
-- Community membership management
-- Event creation with seat limits
-- Asynchronous booking processing
-- Transaction-safe seat allocation
-- Redis-cached seat availability
-- Automatic waitlist management
-- Automatic promotion after cancellation
-- Pagination on list endpoints
-- Rate limiting on the booking endpoint
-- Structured logging with `slog`
-- Context propagation and timeouts
-- Graceful shutdown with worker draining
-- Centralised error handling
-- CORS middleware
-- System statistics endpoint
-- Integration tests
-- Docker support
-- GitHub Actions CI/CD
-- Cloud deployment
+```text
+Handler     → Handles HTTP request and response
+Service     → Handles business logic
+Repository  → Handles database/Redis operations
+```
 
-## How Booking Works
+### Main Features
 
-A booking request does not immediately guarantee a seat.
+```text
+auth
+movies
+theaters
+shows
+seats
+bookings
+```
 
-1. A member requests a seat for an event.
-2. The API creates a booking job.
-3. A background worker processes the job.
-4. A database transaction checks the current seat availability.
-5. The member is either:
-   - confirmed, or
-   - added to the waitlist.
-6. If a confirmed member cancels, the next waitlisted member is promoted automatically.
-
-This approach helps the system safely handle multiple booking requests arriving at the same time.
-
-## Why Transactions Are Important
-
-Imagine an event has only one seat remaining and two members request it at the same time.
-
-Without transaction protection, both members could incorrectly receive the final seat.
-
-Database transactions ensure that seat allocation remains correct and that an event never confirms more members than its allowed capacity.
-
-## Why Redis Is Used
-
-PostgreSQL remains the source of truth for bookings and seat allocation.
-
-Redis is used to cache seat availability so the system can answer availability requests quickly without querying the database every time.
-
-The cache must be updated or invalidated whenever a booking is confirmed, cancelled, waitlisted, or promoted.
-
-## Planned Statistics Endpoint
-
-The `/stats` endpoint will provide information such as:
-
-- Total communities
-- Total events
-- Total bookings
-- Total waitlisted members
-- Cache status
-
-## Technology Stack
-
-- **Language:** Go
-- **HTTP Framework:** Gin
-- **Database:** PostgreSQL
-- **Database Library:** sqlx
-- **Database Migrations:** golang-migrate
-- **Authentication:** golang-jwt
-- **Caching:** Redis
-- **Logging:** slog
-- **Containerisation:** Docker
-- **CI/CD:** GitHub Actions
+---
 
 ## Project Structure
 
-The final project structure may look similar to this:
-
 ```text
-community-event-booking-system/
+movie-ticket-booking-system/
 ├── cmd/
 │   └── api/
+│       └── main.go
 ├── internal/
-│   ├── auth/
-│   ├── community/
-│   ├── event/
-│   ├── booking/
-│   ├── waitlist/
-│   ├── worker/
+│   ├── config/
+│   ├── db/
+│   ├── dto/
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── movies/
+│   │   ├── theaters/
+│   │   ├── shows/
+│   │   ├── seats/
+│   │   └── bookings/
 │   ├── middleware/
-│   ├── database/
-│   ├── cache/
-│   └── platform/
+│   └── routes/
 ├── migrations/
 ├── tests/
+│   └── integration/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
 └── README.md
 ```
 
-The structure will evolve as the system is designed and implemented.
+---
 
-## Project Status
-
-This project is currently in development.
-
-### Planned Milestones
-
-- [ ] Define requirements and system boundaries
-- [ ] Design database schema
-- [ ] Create migrations
-- [ ] Implement authentication
-- [ ] Implement communities and memberships
-- [ ] Implement event management
-- [ ] Design booking states
-- [ ] Build asynchronous booking worker
-- [ ] Add transaction-safe seat allocation
-- [ ] Implement waitlist promotion
-- [ ] Add Redis caching
-- [ ] Add rate limiting
-- [ ] Add structured logging
-- [ ] Add graceful shutdown
-- [ ] Add statistics endpoint
-- [ ] Write integration tests
-- [ ] Add Docker setup
-- [ ] Configure GitHub Actions
-- [ ] Deploy to the cloud
-
-## Learning Goals
-
-This project focuses on building a backend system where multiple components work together correctly.
-
-The main learning goals are:
-
-- Designing clear system boundaries
-- Protecting shared data from race conditions
-- Using transactions for business-critical operations
-- Processing work asynchronously
-- Managing booking states
-- Keeping cache and database data consistent
-- Shutting down workers safely
-- Writing meaningful integration tests
-- Building a complete CI/CD workflow
-- Deploying a production-style backend service
-
-## Module Path
+## Core Booking Flow
 
 ```text
-github.com/deeep8250/community-event-booking-system
+User logs in
+↓
+User selects show and seats
+↓
+System locks selected seats in Redis
+↓
+User creates booking
+↓
+System validates seat lock ownership
+↓
+System creates booking inside a PostgreSQL transaction
+↓
+System stores booked seats
+↓
+System removes Redis seat locks
 ```
 
-## Running the Project
+---
 
-Setup and execution instructions will be added as the implementation progresses.
+## Seat Status Logic
 
-The expected local development flow will use Docker Compose to run:
+Seats can have these statuses:
 
-- Go API
-- PostgreSQL
-- Redis
+```text
+available
+locked
+booked
+disabled
+```
 
-## Testing
+Priority:
 
-The project will include integration tests for the most important business flows:
+```text
+disabled > booked > locked > available
+```
 
-- Booking confirmation when a seat is available
-- Waitlisting when an event is full
-- Cancellation of a confirmed booking
-- Automatic promotion from the waitlist
-- Protection against overbooking
+---
 
-## License
+## API Endpoints
 
-This project is created for learning and portfolio purposes.
+### Health Routes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Health check |
+| GET | `/ready` | Readiness check |
+
+---
+
+### Public Routes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/public/signup` | Create user account |
+| POST | `/public/login` | Login user |
+| GET | `/public/movies` | Get all movies |
+| GET | `/public/movies/:id` | Get movie by ID |
+| GET | `/public/movies/:id/shows` | Get shows by movie |
+| GET | `/public/theaters` | Get all theaters |
+| GET | `/public/theaters/shows/:id` | Get shows by theater |
+| GET | `/public/theaters/shows/:id/seats` | Get seats for a show |
+
+---
+
+### Private Routes
+
+These routes require JWT authentication.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/private/user` | Get logged-in user |
+| POST | `/private/shows/:id/seats/lock` | Lock seats for a show |
+| POST | `/private/shows/:id/seats/unlock` | Unlock seats for a show |
+| POST | `/private/bookings` | Create booking |
+| GET | `/private/bookings/:id/details` | Get booking details |
+| GET | `/private/users/me/bookings` | Get user booking history |
+| PATCH | `/private/bookings/:id/cancel` | Cancel booking |
+
+---
+
+## Environment Variables
+
+Create a `.env` file:
+
+```env
+PORT=8080
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=movie_booking
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+JWT_SECRET=your-secret-key
+```
+
+When running with Docker Compose, use service names:
+
+```env
+DB_HOST=db
+REDIS_HOST=redis
+```
+
+---
+
+## Run Locally
+
+Start PostgreSQL and Redis first.
+
+Run database migrations:
+
+```bash
+migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/movie_booking?sslmode=disable" up
+```
+
+Run the application:
+
+```bash
+go run ./cmd/api
+```
+
+Server starts on:
+
+```text
+http://localhost:8080
+```
+
+---
+
+## Run with Docker
+
+Build the Docker image:
+
+```bash
+docker build -t movie-ticket-booking-system:local .
+```
+
+Run using Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Check health:
+
+```bash
+curl http://localhost:8080/health
+```
+
+---
+
+## Run Tests
+
+Run all Go tests:
+
+```bash
+go test ./... -v
+```
+
+Run integration tests:
+
+```powershell
+.\run-integration-tests.ps1
+```
+
+Integration tests currently cover:
+
+```text
+Router setup
+Health route
+Protected route without token
+Protected route with token
+Signup and login flow
+Seat lock flow
+Seat unlock flow
+Booking flow
+Booking cancellation flow
+```
+
+---
+
+## CI/CD
+
+This project uses GitHub Actions for continuous integration.
+
+The pipeline checks:
+
+```text
+Go dependency consistency
+Code formatting
+go vet
+Go tests
+Docker image build
+Docker image push to GitHub Container Registry
+```
+
+---
+
+## Current Status
+
+Version 1 is completed.
+
+Current version includes:
+
+```text
+Authentication
+Movie/theater/show APIs
+Seat locking with Redis
+Booking with PostgreSQL transactions
+Booking cancellation
+Docker setup
+CI/CD
+Integration tests
+```
+
+---
+
+## Future Improvements
+
+- Pending booking flow
+- Simulated payment confirmation
+- Background worker to expire unpaid bookings
+- Admin APIs for movies, theaters, halls, shows, and seats
+- Role-based authorization
+- Swagger/OpenAPI documentation
+- More edge-case integration tests
+- Production deployment
+
+---
+
+## Author
+
+Developed by [deeep8250](https://github.com/deeep8250)

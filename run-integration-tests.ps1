@@ -8,6 +8,6 @@ $env:REDIS_HOST="127.0.0.1"
 $env:REDIS_PORT="6379"
 $env:REDIS_PASSWORD="redis_password_12234"
 
-$env:JWT_SECRET="its-secret-bro"
+$env:JWT_SECRET="test-secret"
 
 go test ./tests/integration -v -count=1
